@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "additionalDirectories": [],
+    "deny": [
+      "Read(//C:/Users/jbyers/AppData/**)",
+      "Read(//C:/Users/jbyers/.ssh/**)",
+      "Read(//C:/Users/jbyers/.aws/**)",
+      "Read(//C:/Users/jbyers/.azure/**)",
+      "Read(//C:/Users/jbyers/.kube/**)",
+      "Read(//C:/Users/jbyers/.git-credentials)",
+      "Read(//C:/Users/jbyers/Documents/**)",
+      "Read(//C:/Users/jbyers/Desktop/**)",
+      "Read(//C:/Users/jbyers/Downloads/**)",
+      "Read(//C:/Users/jbyers/OneDrive*/**)",
+      "Edit(//C:/Users/jbyers/AppData/**)",
+      "Edit(//C:/Users/jbyers/Documents/**)",
+      "Edit(//C:/Users/jbyers/Desktop/**)",
+      "Edit(//C:/Users/jbyers/Downloads/**)",
+      "Edit(//C:/Users/jbyers/OneDrive*/**)"
+    ]
+  }
+}
