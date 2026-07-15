@@ -27,11 +27,14 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # npm install (not npm ci) tolerates platform-specific optional deps:
+        # the lockfile is generated on Windows but CI runs on Linux, which needs
+        # different native/optional packages. npm ci is too strict for that.
+        run: npm install
 
       - name: Build
         run: npm run build
