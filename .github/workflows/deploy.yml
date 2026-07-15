@@ -28,7 +28,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          # No npm cache here: caching keys off a committed lockfile, which we
+          # intentionally don't commit (see .gitignore). Install is fast anyway.
 
       - name: Install dependencies
         # npm install (not npm ci) tolerates platform-specific optional deps:

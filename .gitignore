@@ -11,6 +11,11 @@ dist
 dist-ssr
 *.local
 
+# Not committed on purpose: a Windows-generated package-lock.json breaks the
+# Linux CI install (platform-specific optional deps → npm crash). CI resolves
+# dependencies fresh from package.json instead.
+package-lock.json
+
 # Local working files & notes — keep OUT of the public repo (work-context, paths, config)
 .claude/
 CLAUDE.md
