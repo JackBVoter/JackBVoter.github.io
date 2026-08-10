@@ -3,6 +3,7 @@ import { Navbar, Nav, Container } from 'react-bootstrap'
 
 import Home from './pages/Home.jsx'
 import About from './pages/About.jsx'
+import Player from './pages/Player.jsx'
 import './App.css'
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
       <Container className="py-4">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/player/:userId" element={<Player />} />
           <Route path="/about" element={<About />} />
         </Routes>
       </Container>
