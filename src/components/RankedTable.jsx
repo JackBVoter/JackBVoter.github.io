@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { Card, Table } from 'react-bootstrap'
 
 export function pct(n) {
@@ -16,13 +17,25 @@ export function rateClass(row) {
   return ''
 }
 
-/** A win-rate cell with small-sample handling, shared by most widgets. */
-export function winRateColumn(header = 'Win rate') {
+/**
+ * A win-rate cell with small-sample handling, shared by most widgets.
+ *
+ * `sortDir` has no default worth guessing: on "Most Common Wins" the
+ * interesting end is your best matchups, on "Most Common Loses" it's your
+ * worst. Each caller states which way its table means.
+ */
+export function winRateColumn(header = 'Win rate', { sortDir = 'desc' } = {}) {
   return {
     header,
     align: 'end',
     className: rateClass,
     cell: (row) => (row.decided > 0 ? pct(row.winRate) : '—'),
+    sortValue: (row) => row.winRate,
+    sortDir,
+    // Rows with no decided battles show "—", not a percentage. Their winRate is
+    // 0 by convention rather than by result, so they belong at the bottom
+    // whichever way the column runs.
+    sortRank: (row) => (row.decided > 0 ? 1 : 0),
   }
 }
 
@@ -31,8 +44,20 @@ export function winRateColumn(header = 'Win rate') {
  * page. Columns are configurable because each widget counts something
  * different — battles, wins, losses, times used.
  *
- * @param {object[]} rows - pre-sorted; this component does not reorder
- * @param {object[]} columns - { header, cell(row), align?, className?, hideOn? }
+ * When `sortable`, the reader chooses which column ranks the table, but NOT
+ * which direction it runs. Direction is a property of the measure, not a
+ * preference: "Lost to" is only ever interesting highest-first, and win rate on
+ * a loses table is only ever interesting lowest-first. Letting it flip produced
+ * the reading that broke this widget — a 90% win rate sitting at the top of a
+ * table about losing, which looks like a bug rather than a definition. So each
+ * column declares its one correct `sortDir` and clicking only ever picks the
+ * column.
+ *
+ * @param {object[]} rows - pre-sorted; used as-is when not sortable
+ * @param {object[]} columns - { header, cell(row), align?, className?, hideOn?,
+ *   sortValue?(row), sortDir?: 'desc'|'asc', sortRank?(row) }
+ * @param {boolean} sortable - opt-in: some widgets are a deliberate ranking
+ *   where re-ordering would undercut the point of the widget.
  */
 function RankedTable({
   title,
@@ -42,10 +67,44 @@ function RankedTable({
   nameHeader = 'Name',
   renderName = (row) => row.key,
   onRowClick,
+  sortable = false,
+  // Some rows aren't a name but a composition — six Pokémon that need room to
+  // wrap. Truncating those to one line would hide most of the row's content.
+  wideName = false,
   max = 10,
   empty = 'Nothing to show yet.',
 }) {
-  const shown = rows.slice(0, max)
+  const sortableColumns = sortable ? columns.filter((c) => c.sortValue) : []
+
+  // Start on the first sortable column, which each caller orders its rows by
+  // anyway — so the initial view matches what the widget's title promises, and
+  // the active column is visibly marked from the first render rather than
+  // appearing only after a click.
+  const [sortHeader, setSortHeader] = useState(sortableColumns[0]?.header ?? null)
+
+  const sortColumn = sortableColumns.find((c) => c.header === sortHeader) ?? null
+
+  // Sort the whole list, never just the visible slice: with `max` rows shown,
+  // re-ranking only those would reorder an arbitrary top-10 rather than
+  // answering "who actually leads by this measure".
+  const ordered = useMemo(() => {
+    if (!sortColumn) return rows
+    const dir = sortColumn.sortDir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const rank = (sortColumn.sortRank?.(b) ?? 0) - (sortColumn.sortRank?.(a) ?? 0)
+      if (rank) return rank
+      const diff = (sortColumn.sortValue(a) - sortColumn.sortValue(b)) * dir
+      if (diff) return diff
+      // Tie-break on sample size so a lone 100% doesn't outrank a
+      // well-evidenced one, then on name to keep the order stable.
+      return (
+        (b.decided ?? b.battles ?? 0) - (a.decided ?? a.battles ?? 0) ||
+        String(a.key).localeCompare(String(b.key))
+      )
+    })
+  }, [rows, sortColumn])
+
+  const shown = ordered.slice(0, max)
 
   return (
     <Card className="h-100 shadow-sm">
@@ -63,16 +122,50 @@ function RankedTable({
                   #
                 </th>
                 <th className="text-muted fw-normal">{nameHeader}</th>
-                {columns.map((column) => (
-                  <th
-                    key={column.header}
-                    className={`text-muted fw-normal text-${column.align ?? 'end'} ${
-                      column.hideOn ?? ''
-                    }`}
-                  >
-                    {column.header}
-                  </th>
-                ))}
+                {columns.map((column) => {
+                  const canSort = sortableColumns.includes(column)
+                  const active = sortColumn === column
+                  const lowestFirst = column.sortDir === 'asc'
+                  return (
+                    <th
+                      key={column.header}
+                      className={`text-muted fw-normal text-${column.align ?? 'end'} ${
+                        column.hideOn ?? ''
+                      }`}
+                      aria-sort={
+                        active ? (lowestFirst ? 'ascending' : 'descending') : undefined
+                      }
+                    >
+                      {canSort ? (
+                        // A button rather than a clickable th, so the sort is
+                        // reachable by keyboard and announced as a control.
+                        // Clicking the active column is a no-op — there is no
+                        // second state to toggle into.
+                        <button
+                          type="button"
+                          className={`btn btn-link btn-sm p-0 text-decoration-none align-baseline ${
+                            active ? 'fw-semibold' : 'text-muted'
+                          }`}
+                          onClick={() => setSortHeader(column.header)}
+                          aria-pressed={active}
+                          title={`Sort by ${column.header.toLowerCase()} — ${
+                            lowestFirst ? 'lowest first' : 'highest first'
+                          }`}
+                        >
+                          {column.header}
+                          {/* Only on the active column, and it reports the
+                              column's fixed direction rather than offering a
+                              flip. */}
+                          {active ? (
+                            <span aria-hidden="true">{lowestFirst ? ' ↑' : ' ↓'}</span>
+                          ) : null}
+                        </button>
+                      ) : (
+                        column.header
+                      )}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -83,7 +176,10 @@ function RankedTable({
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   <td className="text-muted">{index + 1}</td>
-                  <td className="text-truncate" style={{ maxWidth: '11rem' }}>
+                  <td
+                    className={wideName ? 'w-100' : 'text-truncate'}
+                    style={wideName ? undefined : { maxWidth: '11rem' }}
+                  >
                     {renderName(row)}
                   </td>
                   {columns.map((column) => (

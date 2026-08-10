@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Col, Row } from 'react-bootstrap'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -6,6 +6,7 @@ import AnalysisProgress from '../components/AnalysisProgress.jsx'
 import FormatFilter from '../components/FormatFilter.jsx'
 import GameCountPicker from '../components/GameCountPicker.jsx'
 import RankedTable, { pct, winRateColumn } from '../components/RankedTable.jsx'
+import RatingChart from '../components/RatingChart.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 import { DEFAULT_GAME_COUNT, largestUsableCount } from '../lib/gameCounts.js'
 import StatTile from '../components/StatTile.jsx'
@@ -20,6 +21,11 @@ const countColumn = (header, pick, hideOn) => ({
   align: 'end',
   hideOn,
   cell: pick,
+  // A count column only ever reads one way: "you beat Kingambit 13 times" is
+  // the headline, "you beat Amoonguss twice" is not. Tables without `sortable`
+  // ignore this.
+  sortValue: pick,
+  sortDir: 'desc',
 })
 
 /**
@@ -43,32 +49,59 @@ function Player() {
     format,
   })
 
-  function changeFormat(next) {
-    const params = new URLSearchParams(searchParams)
-    if (next) params.set('format', next)
-    else params.delete('format')
-    setSearchParams(params, { replace: true })
-  }
+  const changeFormat = useCallback(
+    (next) => {
+      const params = new URLSearchParams(searchParams)
+      if (next) params.set('format', next)
+      else params.delete('format')
+      setSearchParams(params, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
 
   const busy = progress.phase !== 'done' && progress.phase !== 'idle' && progress.phase !== 'error'
   const stats = data?.stats
   const available = typeof data?.available === 'number' ? data.available : null
 
+  // Arriving without ?format= (a plain search, rather than a ladder click) lets
+  // the hook pick the player's most-played format. Read the scope back from the
+  // data so the page always shows the format the numbers actually came from.
+  const activeFormat = data?.format ?? format
+
   // The player may have zero replays in the selected format, in which case it
   // won't appear in formatCounts — fall back to our own label for supported
   // formats so the message can still name it.
-  const formatLabel = format
-    ? (data?.formatCounts?.find((entry) => entry.formatId === format)?.label ??
-      findFormat(format)?.label ??
-      format)
-    : 'All formats'
+  const formatLabel = activeFormat
+    ? (data?.formatCounts?.find((entry) => entry.formatId === activeFormat)?.label ??
+      findFormat(activeFormat)?.label ??
+      activeFormat)
+    : null
 
-  // Random Battle logs carry no team preview, so team composition there is only
-  // what was actually sent out. Say so rather than presenting a partial team as
-  // if it were the whole one.
-  const noTeamPreview = Boolean(
-    stats?.formats.some((format) => /random battle/i.test(format.key)),
-  )
+  // Their most-played format, offered as a way out when the selected one is
+  // empty. Never offer the format we are already showing.
+  const fallbackFormat =
+    data?.formatCounts?.find((entry) => entry.formatId !== activeFormat) ?? null
+
+  // Put the resolved format in the URL so the dashboard is shareable and a
+  // refresh lands on the same scope. `replace` because this is completing the
+  // address the user already asked for, not a new place to go back to.
+  useEffect(() => {
+    if (format || !data?.format) return
+    changeFormat(data.format)
+  }, [format, data?.format, changeFormat])
+
+  // A team can only be identified when the replay has team preview. Random
+  // Battle has none, so those battles contribute no team at all — say how many
+  // were left out rather than showing a smaller sample without explanation.
+  const excludedFromTeams = stats?.battlesWithoutTeamPreview ?? 0
+  // "The full team" rather than "the six": most formats bring six, but not all
+  // do — gen9randombattlesharedpowerb12p6 brings twelve.
+  const teamSubtitle =
+    excludedFromTeams > 0
+      ? `The full team brought together, most-used first — ${excludedFromTeams} battle${
+          excludedFromTeams === 1 ? '' : 's'
+        } excluded for having no team preview`
+      : 'The full team brought together, most-used first'
 
   // Once we know how many replays exist, step the selection down if it asked
   // for more than that — otherwise the button would read "200" while the page
@@ -111,12 +144,13 @@ function Player() {
       <Row className="g-3 mb-4 align-items-end">
         <Col md={5} lg={4}>
           <FormatFilter
-            value={format}
+            value={activeFormat}
             onChange={changeFormat}
             formatCounts={data?.formatCounts ?? []}
             total={data?.totalAvailable ?? 0}
             capped={Boolean(data?.totalCapped)}
             disabled={busy || !data}
+            loading={busy || !data}
           />
         </Col>
         <Col md={7} lg={8}>
@@ -143,7 +177,7 @@ function Player() {
 
       {stats && !busy ? (
         stats.totals.battles === 0 ? (
-          format ? (
+          activeFormat ? (
             // Being ranked on a ladder does not mean uploading replays from it.
             // Substituting other formats' data here is what made the page look
             // like it was inventing numbers, so say nothing rather than
@@ -151,7 +185,7 @@ function Player() {
             <Alert variant="warning">
               <strong>{data.displayName ?? userId}</strong> has no public replays
               in <strong>{formatLabel}</strong>
-              {data.totalAvailable > 0 ? (
+              {fallbackFormat ? (
                 <>
                   , though they have {data.totalAvailable} in other formats.
                   Statistics from those would not describe this format, so
@@ -159,9 +193,9 @@ function Player() {
                   <Alert.Link
                     as="button"
                     className="btn btn-link p-0 align-baseline border-0"
-                    onClick={() => changeFormat(null)}
+                    onClick={() => changeFormat(fallbackFormat.formatId)}
                   >
-                    Show all formats instead
+                    Show {fallbackFormat.label} instead
                   </Alert.Link>
                   .
                 </>
@@ -242,49 +276,61 @@ function Player() {
               </p>
             ) : null}
 
-            <Row className="g-3">
-              <Col lg={6}>
-                <RankedTable
-                  title="Formats"
-                  subtitle="Where these battles were played"
-                  rows={stats.formats}
-                  nameHeader="Format"
-                  columns={[
-                    countColumn('Battles', (r) => r.battles),
-                    winRateColumn(),
-                  ]}
-                />
+            <Row className="g-3 mb-3">
+              <Col xs={12}>
+                <RatingChart points={stats.ratingTimeline} />
               </Col>
+            </Row>
 
-              <Col lg={6}>
+            {/* No "Formats" breakdown here any more: every battle on the page
+                is in the format named above it, so the table was one row
+                restating the filter. */}
+            <Row className="g-3">
+              {/* Full width: a row here is six Pokémon, not one name. */}
+              <Col xs={12}>
                 <RankedTable
                   title="Most Used Team"
-                  subtitle={
-                    noTeamPreview
-                      ? 'Pokémon brought most often — Random Battle has no team preview, so only revealed Pokémon are counted there'
-                      : 'Pokémon brought most often'
-                  }
-                  rows={stats.team}
-                  nameHeader="Pokémon"
-                  renderName={(row) => displaySpecies(row.key)}
+                  subtitle={teamSubtitle}
+                  rows={stats.teams}
+                  nameHeader="Team"
+                  wideName
+                  renderName={(row) => (
+                    <div className="d-flex flex-wrap gap-1">
+                      {row.members.map((member) => (
+                        <span
+                          key={member}
+                          className="badge text-bg-secondary fw-normal"
+                        >
+                          {displaySpecies(member)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   columns={[
                     countColumn('Battles', (r) => r.battles),
                     winRateColumn(),
                   ]}
+                  empty={
+                    stats.battlesWithoutTeamPreview > 0
+                      ? "This format has no team preview, so the replays don't say which six were brought."
+                      : 'No teams to show yet.'
+                  }
                 />
               </Col>
 
               <Col lg={6}>
                 <RankedTable
                   title="Most Common Wins"
-                  subtitle="Opposing Pokémon you beat most often"
+                  subtitle="Opposing Pokémon you beat most often — click a column to rank by it"
                   rows={stats.commonWins}
                   nameHeader="Pokémon"
                   renderName={(row) => displaySpecies(row.key)}
+                  sortable
                   columns={[
                     countColumn('Beat', (r) => r.wins),
                     countColumn('Faced', (r) => r.battles, 'd-none d-sm-table-cell'),
-                    winRateColumn(),
+                    // Best matchups first: this table is about what you beat.
+                    winRateColumn('Win rate', { sortDir: 'desc' }),
                   ]}
                   empty="No wins in this sample yet."
                 />
@@ -293,14 +339,18 @@ function Player() {
               <Col lg={6}>
                 <RankedTable
                   title="Most Common Loses"
-                  subtitle="Opposing Pokémon that beat you most often"
+                  subtitle="Opposing Pokémon that beat you most often — click a column to rank by it"
                   rows={stats.commonLoses}
                   nameHeader="Pokémon"
                   renderName={(row) => displaySpecies(row.key)}
+                  sortable
                   columns={[
                     countColumn('Lost to', (r) => r.losses),
                     countColumn('Faced', (r) => r.battles, 'd-none d-sm-table-cell'),
-                    winRateColumn(),
+                    // Worst matchups first. Highest-first here would top a table
+                    // about losing with a 90% win rate — the reading that made
+                    // this control confusing in the first place.
+                    winRateColumn('Win rate', { sortDir: 'asc' }),
                   ]}
                   empty="No losses in this sample — nice."
                 />
@@ -317,7 +367,9 @@ function Player() {
                   onRowClick={(row) =>
                     navigate(
                       `/player/${toUserId(row.key)}${
-                        format ? `?format=${encodeURIComponent(format)}` : ''
+                        activeFormat
+                          ? `?format=${encodeURIComponent(activeFormat)}`
+                          : ''
                       }`,
                     )
                   }

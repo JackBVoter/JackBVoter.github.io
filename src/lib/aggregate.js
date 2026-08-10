@@ -46,6 +46,51 @@ function byUsage(a, b) {
 }
 
 /**
+ * Whole teams the player brought, most-used first — one row per distinct set of
+ * six, not per Pokémon.
+ *
+ * Only battles with team preview can be counted. Without it (Random Battle, and
+ * any other format with no `|poke|` lines) `me.team` is just whoever got sent
+ * out, so the same team reads as a different set every battle and the tally
+ * degenerates into a list of one-offs. Better to count nothing than to invent
+ * teams that were never brought.
+ *
+ * Members are sorted so that bring order can't split one team across two rows,
+ * and that sorted list doubles as the identity key.
+ */
+function teamsUsed(battles) {
+  const map = new Map()
+
+  for (const battle of battles) {
+    if (!battle.me.teamPreviewed || battle.me.team.length === 0) continue
+
+    const members = [...new Set(battle.me.team)].sort()
+    const key = members.join('|')
+
+    let row = map.get(key)
+    if (!row) {
+      row = { key, members, battles: 0, wins: 0, losses: 0, ties: 0, lastUsed: null }
+      map.set(key, row)
+    }
+    row.battles += 1
+    if (battle.result === 'win') row.wins += 1
+    else if (battle.result === 'loss') row.losses += 1
+    else if (battle.result === 'tie') row.ties += 1
+    if (battle.uploadTime && battle.uploadTime > (row.lastUsed ?? 0)) {
+      row.lastUsed = battle.uploadTime
+    }
+  }
+
+  return [...map.values()]
+    .map((row) => ({
+      ...row,
+      decided: row.wins + row.losses,
+      winRate: rate(row.wins, row.wins + row.losses),
+    }))
+    .sort(byUsage)
+}
+
+/**
  * Longest run of wins, plus the streak the player is currently on.
  * Expects `battles` sorted newest-first (the order Showdown returns them).
  */
@@ -88,9 +133,13 @@ export function aggregate(battles) {
 
   const formats = tally(battles, (b) => [b.format]).sort(byUsage)
 
-  // "Most Used Team" — the player's own Pokémon. A Set because a species should
-  // count once per battle even if it somehow appears twice in a log.
-  const team = tally(battles, (b) => new Set(b.me.team)).sort(byUsage)
+  // "Most Used Team" — whole teams, one row per distinct six.
+  const teams = teamsUsed(battles)
+
+  // Battles that couldn't contribute a team, so the widget can say why its
+  // sample is smaller than the headline battle count instead of silently
+  // dropping games.
+  const battlesWithoutTeamPreview = battles.filter((b) => !b.me.teamPreviewed).length
 
   // Opposing Pokémon, counted once per battle faced. `wins`/`losses` here are
   // the PLAYER's results in battles where that Pokémon was on the other side.
@@ -125,7 +174,15 @@ export function aggregate(battles) {
   // the closest thing to a ladder history the replay API exposes.
   const ratingTimeline = battles
     .filter((b) => b.me.elo && b.uploadTime)
-    .map((b) => ({ time: b.uploadTime, elo: b.me.elo, format: b.format, id: b.id }))
+    .map((b) => ({
+      time: b.uploadTime,
+      elo: b.me.elo,
+      format: b.format,
+      id: b.id,
+      // For the chart's tooltip. Not encoded as colour — the line is one series
+      // and the result is a detail you get on hover.
+      result: b.result,
+    }))
     .sort((a, b) => a.time - b.time)
 
   const knockedOut = battles.reduce((sum, b) => sum + b.opponent.fainted.length, 0)
@@ -154,7 +211,8 @@ export function aggregate(battles) {
       perBattle: total ? knockedOut / total : 0,
     },
     formats,
-    team,
+    teams,
+    battlesWithoutTeamPreview,
     opposing: [...opposing].sort(byUsage),
     commonWins,
     commonLoses,
