@@ -43,8 +43,8 @@ All of the player's dashboards (widgets below).
 | Widget | Meaning |
 |---|---|
 | See Data From How Many Games? | User-controlled sample size — how many replays to analyse |
-| Formats | Breakdown of which formats the player plays |
-| Most Used Team | The player's most-brought Pokémon |
+| ~~Formats~~ | **Removed 2026-08-09.** Every dashboard is now scoped to exactly one format (chosen in the filter, carried in the URL), so this table was a single row restating the filter. The format *picker* remains; the breakdown widget does not |
+| Most Used Team | The player's most-brought **whole teams** — one row per distinct set brought together, not per Pokémon (changed 2026-08-09) |
 | Most Common Wins | **Opposing** Pokémon appearing most often in the player's **wins** |
 | Most Common Loses | **Opposing** Pokémon appearing most often in the player's **losses** |
 | Players who beat you more than once | Opponents with 2+ wins against this player |
@@ -238,15 +238,27 @@ render as `N+` with a note. Selecting a format then reports its real total.
 
 **No team preview in Random Battle.** `gen9randombattle` logs contain **zero**
 `|poke|` lines and no `|teampreview|`, unlike `gen9ou` and VGC (12 `|poke|` lines
-each). The parser falls back to the Pokémon actually sent out, so for Random
-Battle "Most Used Team" shows only what was *revealed* — typically 3–5 of 6 — and
-never Pokémon that stayed on the bench. Two consequences:
-- Random Battle team counts are systematically under-reported.
-- "Most Used Team" is arguably meaningless there anyway, since teams are randomly
-  generated. Consider hiding or relabelling that widget for Random Battle.
+each). The parser falls back to the Pokémon actually sent out, so `me.team` there
+is only what was *revealed* — typically 3–5 of 6 — and never Pokémon that stayed
+on the bench.
 
-The same fallback applies to any format without team preview; the widget is
-accurate for OU / Ubers / UU / Monotype / VGC, which all use team preview.
+**Resolved 2026-08-09 for "Most Used Team".** Now that the widget identifies a
+whole team rather than counting Pokémon, the fallback is not merely imprecise but
+unusable: the same random team reveals a different subset every battle, so it
+would never match itself and the table would be nothing but one-offs. `parseReplay`
+therefore exposes `me.teamPreviewed` / `opponent.teamPreviewed`, and `teamsUsed()`
+skips any battle without it. `stats.battlesWithoutTeamPreview` counts what was
+left out so the widget can say so instead of quietly shrinking its sample. The
+widget is accurate for OU / Ubers / UU / Monotype / VGC, which all use team
+preview.
+
+**Six is not a universal team size.** `gen9randombattlesharedpowerb12p6` brings
+**12** (the `b12` in the id), verified live 2026-08-09. Nothing may hard-code six:
+`teamsUsed()` groups whatever the preview lists, the widget copy says "the full
+team" rather than "the six", and `scripts/validate-parser.mjs` treats a team over
+six as a note rather than a failure (it fails only above 24, which would mean the
+parser is mixing the two sides). The faint-count check is against that battle's
+own team size, not a flat six.
 
 **Free-For-All is not tracked.** FFA formats (e.g. Free-For-All Random Battle)
 have four players — `|player|p3|`, `|player|p4|`. Every dashboard here assumes a
