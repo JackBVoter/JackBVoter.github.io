@@ -1,0 +1,42 @@
+AI ASSISTANCE RECORD
+Project: Pokémon Showdown Stats
+Session: 2026-07-26
+Tool: Claude (Claude Code)
+
+RESEARCH & SPECIFICATION
+- Verified Showdown's public APIs against live endpoints: replay search
+  (51 per page), ladder (500 players, CORS-open), user lookup, format filters.
+- Recovered the design from Untitled.fig (ZIP -> zstd -> Kiwi binary) to extract
+  widget names and an embedded design question.
+- Wrote docs/dashboards.md as the project specification.
+
+SAFETY TOOLING
+- Added RULE #0 to CLAUDE.md after writing a scratch folder outside the project.
+- Built an enforcing PreToolUse hook (.claude/hooks/guard-paths.mjs) that blocks
+  writes outside the project directory and any outbound upload. 32 passing tests.
+
+CODE WRITTEN
+- API layer, concurrency-limited fetching, TTL caching.
+- Battle-log parser, validated against 39 live replays across 17 formats.
+- Statistics aggregation.
+- Start page: six format buttons, top-100 ladder, recent top-100 replays linking
+  out to Showdown, player search with real "user not found" validation.
+- Player page: game-count control, progress UI, four headline tiles, six ranked
+  widgets (formats, most used team, most common wins/loses, repeat rivals, most
+  used Tera), and per-format scoping.
+
+BUGS FOUND AND FIXED
+- Parser silently mishandled four-player Free-For-All battles.
+- User lookup treated every typo as a valid account.
+- Player page blended formats, showing Terastallization stats for a format that
+  has none.
+- Showdown's pagination returns duplicate replays, double-counting statistics.
+
+HUMAN DIRECTION
+Jack Byers set the requirements, supplied the Figma design, defined every widget,
+and caught two significant defects: the misleading cross-format statistics and
+the per-format sample-size limitation. Scope, pacing, and design decisions were
+theirs throughout.
+
+STILL UNBUILT
+Ladder Rank Over Time (needs a charting approach) and the Replay Showcase.

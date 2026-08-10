@@ -20,6 +20,10 @@ package-lock.json
 .claude/
 CLAUDE.md
 
+# Figma source for the dashboard mockups (1.2 MB binary). The spec it contained
+# has been transcribed into docs/dashboards.md, so the repo doesn't need it.
+Untitled.fig
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
