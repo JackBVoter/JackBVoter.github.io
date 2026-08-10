@@ -17,6 +17,10 @@ import { mapWithConcurrency, successes } from '../src/lib/pool.js'
 const SAMPLE = Number(process.argv[2]) || 24
 const BASE = 'https://replay.pokemonshowdown.com'
 
+// Well past any real format's bring limit, so exceeding it means the parser is
+// double-counting or mixing the two sides rather than reading an odd metagame.
+const ABSURD_TEAM_SIZE = 24
+
 async function getJson(url) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`${res.status} ${url}`)
@@ -81,11 +85,19 @@ function checkReplay(replay) {
   }
 
   for (const [side, label] of [[a, 'A'], [b, 'B']]) {
-    // 4. Team sizes must be sane. Six is the cap in every supported format.
+    // 4. Team sizes must be sane. Six is the cap in the standard formats, but
+    //    not universally: gen9randombattlesharedpowerb12p6 brings 12 (the "b12"
+    //    in its id), seen live 2026-08-09. So a team over six is worth a note —
+    //    it's how a duplicate-entry or cross-side parser bug would look — while
+    //    only an absurd count is an outright failure.
     if (side.me.team.length === 0) {
       fail(replay.id, `${label}: empty team`)
+    } else if (side.me.team.length > ABSURD_TEAM_SIZE) {
+      fail(replay.id, `${label}: team of ${side.me.team.length} (>${ABSURD_TEAM_SIZE})`)
     } else if (side.me.team.length > 6) {
-      fail(replay.id, `${label}: team of ${side.me.team.length} (>6)`)
+      notes.push(
+        `${replay.id}: ${label}: team of ${side.me.team.length} (${a.formatId || a.format})`,
+      )
     }
 
     // 5. The strongest check: every fainted Pokémon should have resolved from a
@@ -99,9 +111,13 @@ function checkReplay(replay) {
       }
     }
 
-    // 6. You cannot lose more Pokémon than you brought.
-    if (side.me.fainted.length > 6) {
-      fail(replay.id, `${label}: ${side.me.fainted.length} faints (>6)`)
+    // 6. You cannot lose more Pokémon than you brought — which is the team
+    //    size, not a flat six (see 4).
+    if (side.me.fainted.length > side.me.team.length) {
+      fail(
+        replay.id,
+        `${label}: ${side.me.fainted.length} faints > team of ${side.me.team.length}`,
+      )
     }
   }
 

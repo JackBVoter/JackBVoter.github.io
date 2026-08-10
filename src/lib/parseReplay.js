@@ -196,6 +196,12 @@ export function parseReplay(replay, userId) {
   // best available stand-in for a team list.
   const teamOf = (s) => (s.team.length ? s.team : s.revealed)
 
+  // Whether that stand-in was needed. Callers that identify a *team* (rather
+  // than count individual Pokémon) need to know: without team preview the list
+  // is only who got sent out, so the same team looks different every battle and
+  // can never be matched against itself.
+  const previewed = (s) => s.team.length > 0
+
   return {
     id: replay.id,
     format: tier || replay.format || 'Unknown format',
@@ -210,6 +216,7 @@ export function parseReplay(replay, userId) {
       name: me.name || replay.players?.[mySide === 'p1' ? 0 : 1] || '',
       elo: me.elo,
       team: teamOf(me),
+      teamPreviewed: previewed(me),
       revealed: me.revealed,
       fainted: me.fainted,
       terastallized: me.terastallized,
@@ -218,6 +225,7 @@ export function parseReplay(replay, userId) {
       name: opp.name || replay.players?.[oppSide === 'p1' ? 0 : 1] || '',
       elo: opp.elo,
       team: teamOf(opp),
+      teamPreviewed: previewed(opp),
       revealed: opp.revealed,
       fainted: opp.fainted,
       terastallized: opp.terastallized,
