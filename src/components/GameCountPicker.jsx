@@ -9,7 +9,12 @@ import { GAME_COUNT_OPTIONS } from '../lib/gameCounts.js'
  * someone with 30 replays implies a 200-game sample and quietly delivers 30,
  * which is exactly the kind of misleading number a stats site shouldn't print.
  *
- * @param {number|null} available - public replays found, or null while loading
+ * The count is always games *of the selected format*, so the copy says so —
+ * "50 games" reading as 50 replays split across every format a player touched
+ * was the confusion this wording exists to prevent.
+ *
+ * @param {number|null} available - replays in the selected format, or null
+ *   while loading
  */
 function GameCountPicker({ value, onChange, available = null, disabled = false }) {
   const known = typeof available === 'number'
@@ -37,8 +42,8 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
               disabled={disabled || unavailable}
               title={
                 unavailable
-                  ? `Only ${available} replays available`
-                  : `Analyse the ${count} most recent replays`
+                  ? `Only ${available} replays in this format`
+                  : `Analyse the ${count} most recent replays in this format`
               }
               onChange={() => onChange(count)}
             >
@@ -50,11 +55,12 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
 
       {tooFewForAnyOption ? (
         <div className="text-warning-emphasis fw-semibold small mt-2">
-          only: {available} {available === 1 ? 'replay' : 'replays'} available
+          only: {available} {available === 1 ? 'replay' : 'replays'} in this format
         </div>
       ) : known ? (
         <div className="text-muted small mt-2">
-          {available} public {available === 1 ? 'replay' : 'replays'} available.
+          {available} public {available === 1 ? 'replay' : 'replays'} in this
+          format.
         </div>
       ) : (
         <div className="text-muted small mt-2">

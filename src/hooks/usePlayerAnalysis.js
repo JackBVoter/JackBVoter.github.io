@@ -37,6 +37,9 @@ const IDLE = { phase: 'idle', done: 0, total: 0 }
  * Which formats this player has public replays in, most-played first.
  * Derived from the listing, so it costs nothing extra and lets the page offer
  * only formats that actually have data behind them.
+ *
+ * The listing stops at MAX_REPLAY_LIMIT, so this ranks formats by their share
+ * of the player's most recent replays, not their whole career.
  */
 function countFormats(meta) {
   const counts = new Map()
@@ -102,20 +105,35 @@ export function usePlayerAnalysis(
       // format filter covering everything this player has played.
       const formatCounts = countFormats(allMeta)
 
+      // Every dashboard is scoped to exactly one format — there is no
+      // "all formats" view. Mixing them produces numbers that describe no real
+      // game: a win rate averaged over OU and Random Battle, a "most used team"
+      // assembled from formats with different legal Pokémon. When the caller
+      // hasn't chosen, start from the format this player plays most so the page
+      // opens on their main rather than on an arbitrary default they may never
+      // have touched.
+      const activeFormat = format ?? formatCounts[0]?.formatId ?? null
+
       // Fetch the chosen format's own listing rather than filtering the
       // unfiltered one. Filtering client-side would divide MAX_REPLAY_LIMIT
       // across every format the player has ever touched, so a scoped view could
       // never reach the full sample — a player with 200 replays spread over ten
       // formats would top out at ~20 per format no matter what was selected.
+      // Going back to the API means `limit` really does buy `limit` games of
+      // the selected format.
       //
       // Statistics from other formats must never leak in: a top VGC 2026
       // Reg M-B player may have zero replays in that format, and the honest
-      // answer there is "nothing to show".
-      const scoped = format
-        ? await metaCache.get(`meta:${userId}:${format}`, () =>
-            fetchAllReplayMeta(userId, { limit: MAX_REPLAY_LIMIT, format }),
+      // answer there is "nothing to show". A null activeFormat means the player
+      // has no public replays at all, so there is nothing to scope to.
+      const scoped = activeFormat
+        ? await metaCache.get(`meta:${userId}:${activeFormat}`, () =>
+            fetchAllReplayMeta(userId, {
+              limit: MAX_REPLAY_LIMIT,
+              format: activeFormat,
+            }),
           )
-        : allMeta
+        : []
 
       if (signal.aborted) return
 
@@ -131,7 +149,10 @@ export function usePlayerAnalysis(
           profile: await profilePromise,
           battles: [],
           stats: aggregate([]),
-          format,
+          // The format actually used, which may be one we picked rather than
+          // one the caller asked for — the page reads this back to show the
+          // scope and to put it in the URL.
+          format: activeFormat,
           formatCounts,
           totalAvailable: allMeta.length,
           // The unfiltered listing stops at MAX_REPLAY_LIMIT, so when it comes
@@ -179,7 +200,7 @@ export function usePlayerAnalysis(
         profile: await profilePromise,
         battles,
         stats: aggregate(battles),
-        format,
+        format: activeFormat,
         formatCounts,
         totalAvailable: allMeta.length,
         totalCapped: allMeta.length >= MAX_REPLAY_LIMIT,

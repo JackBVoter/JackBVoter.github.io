@@ -26,6 +26,12 @@ async function getJson(url, { signal } = {}) {
 // have reached the end of the user's public replay history.
 export const REPLAYS_PER_PAGE = 51
 
+// Ceiling on how deep we will page through a listing. Only bites when a strict
+// format filter (see fetchAllReplayMeta) discards most of what comes back —
+// without it, a player with thousands of replays and a handful in the requested
+// format would walk their entire history one page at a time.
+export const MAX_LISTING_PAGES = 10
+
 /**
  * Recover the formatid from a replay id: "gen9ou-2655254787" -> "gen9ou".
  *
@@ -56,6 +62,10 @@ export function searchReplayPage(userId, page = 1, opts = {}) {
  * Walk search.json pages until the user's history runs out or we hit `limit`.
  * onPage({ fetched, page }) fires after each page so the UI can show progress
  * while we are still discovering how much work there is to do.
+ *
+ * With `format`, every returned entry is in exactly that format, so `limit`
+ * means "`limit` games of this format" rather than "`limit` games, some of
+ * which happen to be this format".
  */
 export async function fetchAllReplayMeta(
   userId,
@@ -68,7 +78,7 @@ export async function fetchAllReplayMeta(
   // statistic on the page.
   const seen = new Set()
 
-  for (let page = 1; all.length < limit; page += 1) {
+  for (let page = 1; all.length < limit && page <= MAX_LISTING_PAGES; page += 1) {
     // Passing `format` filters server-side, so `limit` counts replays *in that
     // format*. Filtering client-side instead would spend the limit on every
     // format the player has ever touched.
@@ -78,6 +88,14 @@ export async function fetchAllReplayMeta(
     for (const entry of batch) {
       if (!entry?.id || seen.has(entry.id)) continue
       seen.add(entry.id)
+      // Showdown matches `format` as a *suffix*, so asking for "gen9ou" also
+      // returns "smogtours-gen9ou" (verified live 2026-08-09: three of the top
+      // OU ladder players each came back with both). Those are separate formats
+      // everywhere else in this app — formatIdFromReplayId keeps the server
+      // prefix precisely because a tournament game isn't a ladder game — so
+      // letting them through would put another format's battles in a
+      // format-scoped dashboard. Match exactly.
+      if (format && formatIdFromReplayId(entry.id) !== format) continue
       all.push(entry)
     }
     onPage?.({ fetched: all.length, page })
