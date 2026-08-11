@@ -38,5 +38,12 @@ and caught two significant defects: the misleading cross-format statistics and
 the per-format sample-size limitation. Scope, pacing, and design decisions were
 theirs throughout.
 
+On 2026-08-09/10 they directed four further changes, each from their own reading
+of the running app: the game count had to mean games *of the selected format*;
+"Most Used Team" had to show whole teams rather than individual Pokemon; ranked
+tables could choose a sort column but not flip its direction, because a 90% win
+rate at the top of a "lost to" table misleads; and the placeholder nav links came
+out. They also chose the hand-rolled SVG chart over adding a charting library.
+
 STILL UNBUILT
-Ladder Rank Over Time (needs a charting approach) and the Replay Showcase.
+Nothing from the widget spec. All dashboards in docs/dashboards.md are built.

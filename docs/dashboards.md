@@ -215,10 +215,15 @@ Rules now enforced:
 - Clicking a name on a ladder carries **that ladder's format** through. Clicking
   a rival on the player page keeps the current scope.
 - The **Format** dropdown lists only formats the player actually has replays in,
-  with counts, plus "All formats".
+  with counts. **There is no "All formats" option** (removed 2026-08-09): it was
+  the one choice that produced numbers describing no real game, and it made the
+  game-count picker buy a mixed sample — asking for 50 games returned 50 replays
+  spread across whatever the player happened to play. Arriving without a format
+  now resolves to the player's **most-played** one, which is then written into
+  the URL.
 - **Never substitute another format's data.** With no replays in the selected
-  format the page says so and offers to switch to all formats. Being ranked on a
-  ladder does not mean uploading replays from it.
+  format the page says so and offers to switch to their most-played format
+  instead. Being ranked on a ladder does not mean uploading replays from it.
 - The scope is always stated on the page: "45 battles · Gen 9 OU".
 
 **Scoping fetches the format's own listing** (`?user=X&format=Y`), so
@@ -269,7 +274,8 @@ supported format and isn't on the start page.
 
 Re-run `node scripts/validate-parser.mjs [n]` after touching the parser. It
 checks invariants (perspectives mirror each other, nicknames resolve to real
-species, team sizes ≤ 6, FFA declined) against live replays.
+species, team sizes are sane — see "Six is not a universal team size" — and FFA
+is declined) against live replays.
 
 ---
 
@@ -277,8 +283,13 @@ species, team sizes ≤ 6, FFA declined) against live replays.
 - ~~Should the player page be format-filtered?~~ Answered 2026-07-26: **yes**,
   see "Format scoping on the player page" above.
 - What is the **"Internal Only Canvas"** frame in the Figma file for?
-- **"Top 100 Replay Showcase"** appears both as a frame name and as a widget
-  label — is it the same thing as the format view's replay dashboard?
+- ~~**"Top 100 Replay Showcase"** appears both as a frame name and as a widget
+  label — is it the same thing as the format view's replay dashboard?~~ Answered
+  2026-08-10: **two different things, both now built.** The Figma frame is the
+  start page's "recent replays from top-100 players" (`ReplayList`, driven by
+  `useTopPlayerReplays`). The player-page widget is *that player's* own analysed
+  battles (`ReplayShowcase`), which additionally knows each result and turn count
+  because those replays have been parsed.
 - ~~How many replays should "See Data From How Many Games?" offer?~~ Answered
   2026-07-26: options **25 / 50 / 100 / 200**, default **50**. Each step is one
   request per replay, so this is the user's main lever over both wait time and
