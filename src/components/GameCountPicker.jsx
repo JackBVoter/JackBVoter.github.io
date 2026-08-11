@@ -13,6 +13,12 @@ import { GAME_COUNT_OPTIONS } from '../lib/gameCounts.js'
  * "50 games" reading as 50 replays split across every format a player touched
  * was the confusion this wording exists to prevent.
  *
+ * The "only publicly uploaded replays" caveat is permanent rather than a
+ * loading placeholder. It is the single most important limitation of every
+ * number on the page, and it was previously replaced by the replay count the
+ * moment the data arrived — that is, it vanished exactly when the statistics
+ * it qualifies appeared.
+ *
  * @param {number|null} available - replays in the selected format, or null
  *   while loading
  */
@@ -62,12 +68,17 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
           {available} public {available === 1 ? 'replay' : 'replays'} in this
           format.
         </div>
-      ) : (
-        <div className="text-muted small mt-2">
-          A player may have fewer public replays than this — we analyse whatever
-          exists.
-        </div>
-      )}
+      ) : null}
+
+      {/* Stays on screen in every state, not just while loading. Once the
+          numbers are up they look authoritative, and this is the moment the
+          reader most needs to know what they don't cover: a player's public
+          replays are the ones they chose to upload, which can be a small and
+          unrepresentative slice of what they actually played. */}
+      <div className="text-muted small mt-1">
+        Only publicly uploaded replays can be analysed — a player may have
+        played many more games than this. We analyse what&apos;s available.
+      </div>
     </div>
   )
 }
