@@ -7,6 +7,7 @@ import FormatFilter from '../components/FormatFilter.jsx'
 import GameCountPicker from '../components/GameCountPicker.jsx'
 import RankedTable, { pct, winRateColumn } from '../components/RankedTable.jsx'
 import RatingChart from '../components/RatingChart.jsx'
+import ReplayShowcase from '../components/ReplayShowcase.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 import { DEFAULT_GAME_COUNT, largestUsableCount } from '../lib/gameCounts.js'
 import StatTile from '../components/StatTile.jsx'
@@ -31,8 +32,8 @@ const countColumn = (header, pick, hideOn) => ({
 /**
  * A player's dashboards.
  *
- * Headline tiles plus the ranked breakdowns. Still to come: ladder rank over
- * time (needs a chart) and the replay showcase. See docs/dashboards.md.
+ * Headline tiles, the rating chart, the ranked breakdowns, and the replay
+ * showcase. See docs/dashboards.md for what each widget means.
  */
 function Player() {
   const { userId } = useParams()
@@ -393,6 +394,14 @@ function Player() {
                   ]}
                   empty="No Terastallization in this sample. Older generations and some formats don't have it."
                 />
+              </Col>
+            </Row>
+
+            {/* Last, and full width: every widget above is an aggregate, so the
+                way back to the individual games belongs at the bottom. */}
+            <Row className="g-3 mt-0">
+              <Col xs={12}>
+                <ReplayShowcase battles={data.battles} />
               </Col>
             </Row>
           </>

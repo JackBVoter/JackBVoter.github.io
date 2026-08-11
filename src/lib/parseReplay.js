@@ -75,6 +75,7 @@ export function parseReplay(replay, userId) {
   let winnerName = null
   let tie = false
   let forfeited = false
+  let forfeitedBy = null
   let rated = false
   let tier = replay.format ?? ''
 
@@ -160,10 +161,18 @@ export function parseReplay(replay, userId) {
         tier = parts[2] ?? tier
         break
 
-      case '-message':
+      case '-message': {
         // |-message|MaxDOM forfeited.
-        if (/forfeited/i.test(parts[2] ?? '')) forfeited = true
+        const message = parts[2] ?? ''
+        if (/forfeited/i.test(message)) {
+          forfeited = true
+          // Keep the name: "someone forfeited" can't say whether the player
+          // gave up or was given the win, and those read very differently next
+          // to a result. First one wins — a battle only ends once.
+          forfeitedBy ??= message.replace(/\s*forfeited\.?\s*$/i, '').trim()
+        }
         break
+      }
 
       default:
         break
@@ -202,6 +211,14 @@ export function parseReplay(replay, userId) {
   // can never be matched against itself.
   const previewed = (s) => s.team.length > 0
 
+  // Which side gave up. The forfeit message carries a display name, so match it
+  // the same way winners are matched. Null when nobody forfeited, or when the
+  // name in the message doesn't resolve to either player.
+  const forfeitId = forfeitedBy ? toUserId(forfeitedBy) : null
+  const iForfeited = forfeitId !== null && forfeitId === userId
+  const oppForfeited =
+    forfeitId !== null && forfeitId === toUserId(opp.name || '')
+
   return {
     id: replay.id,
     format: tier || replay.format || 'Unknown format',
@@ -215,6 +232,7 @@ export function parseReplay(replay, userId) {
     me: {
       name: me.name || replay.players?.[mySide === 'p1' ? 0 : 1] || '',
       elo: me.elo,
+      forfeited: iForfeited,
       team: teamOf(me),
       teamPreviewed: previewed(me),
       revealed: me.revealed,
@@ -224,6 +242,7 @@ export function parseReplay(replay, userId) {
     opponent: {
       name: opp.name || replay.players?.[oppSide === 'p1' ? 0 : 1] || '',
       elo: opp.elo,
+      forfeited: oppForfeited,
       team: teamOf(opp),
       teamPreviewed: previewed(opp),
       revealed: opp.revealed,
