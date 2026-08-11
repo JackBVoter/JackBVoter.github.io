@@ -42,7 +42,16 @@ function ReplayShowcase({ battles = [] }) {
       ) : (
         // Capped height rather than a "show more" button: the sample can be 200
         // battles, and scrolling beats burying the widgets below it.
-        <div style={{ maxHeight: '28rem', overflowY: 'auto' }}>
+        //
+        // Inset with its own border: as a direct child of the Card this would
+        // otherwise run edge to edge, and its square corners would sit outside
+        // the card's rounded ones. `overflow-y: auto` is enough to clip to the
+        // radius — the .overflow-hidden utility can't be used here because it
+        // is !important and would kill the scrolling.
+        <div
+          className="mx-3 mb-3 border rounded data-well"
+          style={{ maxHeight: '28rem', overflowY: 'auto' }}
+        >
           <Table hover size="sm" className="mb-0 align-middle">
             <thead className="table-light position-sticky top-0">
               <tr>

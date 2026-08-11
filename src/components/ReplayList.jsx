@@ -42,7 +42,12 @@ function ReplayList({ formatLabel, replays, loading, error }) {
           players never upload any.
         </Card.Body>
       ) : (
-        <div style={{ maxHeight: '28rem', overflowY: 'auto' }}>
+        // Inset rather than full-bleed, so its corners stay inside the card's
+        // radius. See the matching note in ReplayShowcase.
+        <div
+          className="mx-3 mb-3 border rounded data-well"
+          style={{ maxHeight: '28rem', overflowY: 'auto' }}
+        >
           <Table hover size="sm" className="mb-0 align-middle">
             <thead className="table-light position-sticky top-0">
               <tr>

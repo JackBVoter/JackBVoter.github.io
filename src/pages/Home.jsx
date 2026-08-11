@@ -27,7 +27,7 @@ function Home() {
   return (
     <>
       <div className="mb-4">
-        <h1 className="h3">Pokémon Showdown Stats</h1>
+        <h1 className="h3">Trackinch Stats</h1>
         <p className="text-muted mb-0">
           Pick a format to browse its ladder, or look up any player&apos;s
           replay history.

@@ -3,6 +3,7 @@ import { Navbar, Container } from 'react-bootstrap'
 
 import Home from './pages/Home.jsx'
 import Player from './pages/Player.jsx'
+import trackinch from './assets/trackinch.png'
 import './App.css'
 
 function App() {
@@ -14,8 +15,13 @@ function App() {
           existed to drive them. */}
       <Navbar bg="dark" variant="dark">
         <Container>
-          <Navbar.Brand as={Link} to="/">
-            Pokémon Showdown Stats
+          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
+            {/* alt="" on purpose: the brand text beside it already names the
+                site, so announcing the mascot too would just be noise. */}
+            <img src={trackinch} alt="" width="34" height="34" />
+            <span>
+              <strong>Track</strong>inch Stats
+            </span>
           </Navbar.Brand>
         </Container>
       </Navbar>

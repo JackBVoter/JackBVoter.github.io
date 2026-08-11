@@ -1,5 +1,5 @@
 AI ASSISTANCE RECORD
-Project: Pokémon Showdown Stats
+Project: Trackinch Stats (a Pokémon Showdown statistics site)
 Session: 2026-07-26
 Tool: Claude (Claude Code)
 

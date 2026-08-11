@@ -1,0 +1,200 @@
+/* Trapinch theme
+   ==========================================================================
+   Everything that makes the site orange lives in this one file, plus three
+   one-line hooks elsewhere (see "Reverting" at the bottom). Nothing here
+   changes behaviour — it only re-points Bootstrap's own custom properties, so
+   removing the file returns the app to stock Bootstrap exactly.
+
+   Colours are sampled from the mascot art in src/assets/trackinch.png.
+   Trapinch is ORANGE with BLACK outlines and pale grey leg bands. He is not
+   brown, and the neutrals here are deliberately kept neutral: an earlier pass
+   warmed the background, borders and muted text toward beige and the whole
+   site went muddy. Orange is the accent; everything else stays out of its way.
+
+   Every value that carries text was checked with a WCAG contrast calculation
+   rather than picked by eye, and the ratios are recorded inline so the next
+   person can tell which values are load-bearing and which are decoration.
+   ========================================================================== */
+
+:root {
+  /* --- the mascot's own colours ----------------------------------------- */
+  --tp-shell: #e8845a; /* his body. 6.18:1 under near-black ink */
+  --tp-shell-hi: #f2a98a; /* the highlight on his shell */
+  --tp-shell-press: #d2704a;
+  --tp-line: #c25a34; /* thin marks. 4.37:1 on white */
+  --tp-ink-orange: #a0451f; /* orange text/links. 5.94:1 on the page bg */
+  --tp-ink: #1f1f1f; /* his outlines. Near-black, NOT brown */
+  --tp-band: #ededef; /* his pale leg bands */
+  --tp-bg: #fff8f5; /* a hint of orange in the white — not beige */
+  --tp-well: #fbf8f6; /* data sits a shade below the card it's in */
+  --tp-border: #e4e2e1; /* neutral, so it doesn't read as tan */
+  --tp-muted: #646c74; /* neutral grey. 5.08:1 on the page bg */
+
+  /* --- re-point Bootstrap ------------------------------------------------ */
+  --bs-body-bg: var(--tp-bg);
+  --bs-border-color: var(--tp-border);
+  --bs-secondary-color: var(--tp-muted); /* what .text-muted reads */
+
+  /* RatingChart reads --bs-primary for its series line. That's a 2px mark on
+     white, which needs 3:1, and the shell orange only manages 2.67 — hence the
+     deeper --tp-line here while button FILLS below use the true shell colour
+     (a fill can be lighter because it carries dark text, not thin strokes). */
+  --bs-primary: var(--tp-line);
+  --bs-primary-rgb: 194, 90, 52;
+
+  /* .bg-secondary / .text-bg-secondary. White on this is 5.75:1. */
+  --bs-secondary-rgb: 95, 103, 110;
+
+  --bs-link-color: var(--tp-ink-orange);
+  --bs-link-color-rgb: 160, 69, 31;
+  --bs-link-hover-color: #8c3a19;
+  --bs-link-hover-color-rgb: 140, 58, 25;
+
+  --bs-focus-ring-color: rgba(232, 132, 90, 0.35);
+}
+
+/* Cards stay white. Bootstrap defaults --bs-card-bg to --bs-body-bg, so
+   without this every card would be tinted-on-tinted and the page would lose
+   its structure. */
+.card {
+  --bs-card-bg: #fff;
+  --bs-card-border-color: var(--tp-border);
+  --bs-card-border-radius: 0.75rem;
+  --bs-card-inner-border-radius: 0.65rem;
+  position: relative;
+  /* No overflow:hidden here on purpose. It would clip RatingChart's tooltip,
+     which is absolutely positioned and translates upward out of the plot. The
+     accent tab below starts at 1.1rem, comfortably clear of the 0.75rem corner
+     radius, so there is nothing to clip anyway. */
+}
+
+/* A small orange tab on the top edge of every metric card — the stylised
+   border. Deliberately a short tab rather than a full 3px top border: with
+   eight-plus cards on the player page, a solid rule across each one stacks
+   into stripes and the page starts shouting. This reads as a detail.
+
+   On ::before so it needs no markup, which keeps the whole theme removable by
+   deleting this file. It covers StatTile too, which has no card title to hang
+   an accent off. */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.1rem;
+  width: 2.25rem;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--tp-shell);
+}
+
+/* The data itself sits in a slightly darker well inside the white card, with
+   its own border and radius. The layering was already there by accident and
+   read well, so this makes it deliberate: card (white) > well (faintest warm
+   tint) > table header (his pale grey band).
+
+   .table-responsive is the wrapper React-Bootstrap emits for <Table responsive>,
+   so the ranked widgets get this for free. overflow is already auto on that
+   class, which is what lets the radius clip the header corners.
+
+   The scrolling replay lists can't use .table-responsive — they need their own
+   max-height and overflow — so they carry .data-well instead and get the same
+   treatment. Their own `overflow-y: auto` is what clips them to the radius. */
+.card .table-responsive,
+.card .data-well {
+  background: var(--tp-well);
+  border-color: var(--tp-border) !important;
+  border-radius: 0.5rem !important;
+}
+
+.card .table-responsive {
+  border: 1px solid var(--tp-border);
+  overflow: hidden;
+}
+
+.card .table-responsive > .table,
+.card .data-well > .table {
+  margin-bottom: 0;
+}
+
+/* Bootstrap draws a bottom rule under the final row; against the well's own
+   border that reads as a doubled line. */
+.card .table-responsive > .table > tbody > tr:last-child > *,
+.card .data-well > .table > tbody > tr:last-child > * {
+  border-bottom-width: 0;
+}
+
+/* Buttons read --bs-btn-*, not --bs-primary, so overriding the root variable
+   alone would leave them stock blue.
+   This is where his actual body colour goes: shell orange under near-black
+   text, 6.18:1. White text here would be 2.67 and is never used. */
+.btn-primary {
+  --bs-btn-bg: var(--tp-shell);
+  --bs-btn-border-color: var(--tp-shell);
+  --bs-btn-color: var(--tp-ink);
+  --bs-btn-hover-bg: var(--tp-shell-hi);
+  --bs-btn-hover-border-color: var(--tp-shell-hi);
+  --bs-btn-hover-color: var(--tp-ink);
+  --bs-btn-active-bg: var(--tp-shell-press);
+  --bs-btn-active-border-color: var(--tp-shell-press);
+  --bs-btn-active-color: var(--tp-ink);
+  --bs-btn-disabled-bg: var(--tp-shell);
+  --bs-btn-disabled-border-color: var(--tp-shell);
+  --bs-btn-disabled-color: var(--tp-ink);
+}
+
+/* The format and game-count pickers. Selected state matches .btn-primary, so
+   the text has to go dark with it. */
+.btn-outline-primary {
+  --bs-btn-color: var(--tp-ink-orange);
+  --bs-btn-border-color: var(--tp-line);
+  --bs-btn-hover-bg: var(--tp-shell);
+  --bs-btn-hover-border-color: var(--tp-shell);
+  --bs-btn-hover-color: var(--tp-ink);
+  --bs-btn-active-bg: var(--tp-shell);
+  --bs-btn-active-border-color: var(--tp-shell);
+  --bs-btn-active-color: var(--tp-ink);
+}
+
+/* Near-black, the colour of his outlines. Deliberately not brown: the mascot
+   sits here, and an orange Trapinch on a brown bar barely reads. Against this
+   he clears 6.18:1, and so does the stripe. */
+.navbar.bg-dark {
+  background-color: var(--tp-ink) !important;
+  border-bottom: 3px solid var(--tp-shell);
+}
+
+.navbar-brand img {
+  object-fit: contain; /* keeps the mascot from growing the navbar */
+}
+
+/* Sticky table headers — his pale leg bands, a neutral grey. */
+.table-light {
+  --bs-table-bg: var(--tp-band);
+  --bs-table-color: var(--tp-ink);
+}
+
+/* Row hover: the faintest orange wash, so it reads as the same family as the
+   accents without tinting the whole table. */
+.table {
+  --bs-table-hover-bg: #fdf0ea;
+}
+
+.progress {
+  --bs-progress-bg: var(--tp-band);
+  --bs-progress-bar-bg: var(--tp-shell);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--tp-shell);
+  box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+}
+
+/* ==========================================================================
+   Reverting
+   Delete this file, then remove its three hooks:
+     1. src/main.jsx  — the `import './theme.css'` line
+     2. src/App.jsx   — the trackinch import and the <img> in Navbar.Brand
+     3. index.html    — the <link rel="icon"> line
+   Nothing else in the codebase refers to any --tp-* variable.
+   ========================================================================== */
