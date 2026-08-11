@@ -9,21 +9,9 @@ export const GAME_COUNT_OPTIONS = [25, 50, 100, 200]
 
 export const DEFAULT_GAME_COUNT = 50
 
-/**
- * The largest option a player with `available` replays can actually fill.
- * Returns null when they have fewer replays than even the smallest option —
- * the caller should then say how many they really have rather than offering a
- * choice that can't be honoured.
- */
-export function largestUsableCount(available) {
-  let best = null
-  for (const count of GAME_COUNT_OPTIONS) {
-    if (count <= available) best = count
-  }
-  return best
-}
-
-/** Options that can't be filled, and so should be greyed out. */
-export function unavailableCounts(available) {
-  return GAME_COUNT_OPTIONS.filter((count) => count > available)
-}
+// There is deliberately nothing here for "which options can this player fill?".
+// Every option is always selectable: a count is a ceiling, and asking for more
+// than exists analyzes everything that does. largestUsableCount() and
+// unavailableCounts() lived here to grey options out and step the selection
+// down, which pinned a player with 58 replays to 50 and hid the other 8.
+// GameCountPicker states the shortfall instead.

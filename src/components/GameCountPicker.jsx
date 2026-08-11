@@ -5,9 +5,16 @@ import { GAME_COUNT_OPTIONS } from '../lib/gameCounts.js'
 /**
  * "See Data From How Many Games?" — from the Figma design.
  *
- * Options the player can't actually fill are disabled. Offering "200" to
- * someone with 30 replays implies a 200-game sample and quietly delivers 30,
- * which is exactly the kind of misleading number a stats site shouldn't print.
+ * Every option is always selectable, even one the player can't fill. Asking for
+ * 100 when 58 exist analyses all 58 and says so; the count is a ceiling, not a
+ * promise. An earlier version disabled those options and silently stepped the
+ * selection back down, which left a player with 58 replays stuck on 50 and
+ * unable to see the other 8 — the control was protecting them from a number
+ * they were entitled to.
+ *
+ * The honesty problem that behaviour was solving is real, though: "100" must
+ * never imply a 100-game sample when it delivered 58. So the shortfall is
+ * stated plainly instead of being prevented.
  *
  * The count is always games *of the selected format*, so the copy says so —
  * "50 games" reading as 50 replays split across every format a player touched
@@ -24,8 +31,9 @@ import { GAME_COUNT_OPTIONS } from '../lib/gameCounts.js'
  */
 function GameCountPicker({ value, onChange, available = null, disabled = false }) {
   const known = typeof available === 'number'
-  // Below the smallest option there is nothing meaningful to choose.
-  const tooFewForAnyOption = known && available < GAME_COUNT_OPTIONS[0]
+  // The selection asks for more than exists. Not an error — just a ceiling the
+  // player should know about, since it caps every statistic on the page.
+  const short = known && value > available
 
   return (
     <div>
@@ -35,21 +43,21 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
 
       <ButtonGroup>
         {GAME_COUNT_OPTIONS.map((count) => {
-          const unavailable = known && count > available
+          const exceedsAvailable = known && count > available
           return (
             <ToggleButton
               key={count}
               id={`game-count-${count}`}
               type="radio"
               name="game-count"
-              variant={count === value && !unavailable ? 'primary' : 'outline-primary'}
+              variant={count === value ? 'primary' : 'outline-primary'}
               value={count}
               checked={count === value}
-              disabled={disabled || unavailable}
+              disabled={disabled}
               title={
-                unavailable
-                  ? `Only ${available} replays in this format`
-                  : `Analyse the ${count} most recent replays in this format`
+                exceedsAvailable
+                  ? `Only ${available} replays in this format — selecting ${count} analyzes all ${available}`
+                  : `Analyze the ${count} most recent replays in this format`
               }
               onChange={() => onChange(count)}
             >
@@ -59,9 +67,10 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
         })}
       </ButtonGroup>
 
-      {tooFewForAnyOption ? (
+      {short ? (
         <div className="text-warning-emphasis fw-semibold small mt-2">
-          only: {available} {available === 1 ? 'replay' : 'replays'} in this format
+          Only {available} {available === 1 ? 'replay' : 'replays'} available in
+          this format — analyzing {available === 1 ? 'it' : 'all of them'}.
         </div>
       ) : known ? (
         <div className="text-muted small mt-2">
@@ -76,8 +85,8 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
           replays are the ones they chose to upload, which can be a small and
           unrepresentative slice of what they actually played. */}
       <div className="text-muted small mt-1">
-        Only publicly uploaded replays can be analysed — a player may have
-        played many more games than this. We analyse what&apos;s available.
+        Only publicly uploaded replays can be analyzed — a player may have
+        played many more games than this. We analyze what&apos;s available.
       </div>
     </div>
   )

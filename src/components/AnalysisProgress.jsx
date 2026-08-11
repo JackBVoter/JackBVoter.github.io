@@ -3,7 +3,7 @@ import { Card, ProgressBar, Spinner } from 'react-bootstrap'
 const LABELS = {
   searching: 'Finding replays',
   fetching: 'Downloading replays',
-  analysing: 'Crunching the numbers',
+  analyzing: 'Crunching the numbers',
 }
 
 /**

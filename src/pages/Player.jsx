@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Col, Row } from 'react-bootstrap'
+import { Alert, Button, Col, Form, Row } from 'react-bootstrap'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import AnalysisProgress from '../components/AnalysisProgress.jsx'
@@ -9,7 +9,7 @@ import RankedTable, { pct, winRateColumn } from '../components/RankedTable.jsx'
 import RatingChart from '../components/RatingChart.jsx'
 import ReplayShowcase from '../components/ReplayShowcase.jsx'
 import SearchBar from '../components/SearchBar.jsx'
-import { DEFAULT_GAME_COUNT, largestUsableCount } from '../lib/gameCounts.js'
+import { DEFAULT_GAME_COUNT } from '../lib/gameCounts.js'
 import StatTile from '../components/StatTile.jsx'
 import TypeLabel from '../components/TypeLabel.jsx'
 import { usePlayerAnalysis } from '../hooks/usePlayerAnalysis.js'
@@ -46,9 +46,13 @@ function Player() {
   const format = searchParams.get('format') || null
 
   const [gameCount, setGameCount] = useState(DEFAULT_GAME_COUNT)
+  // Default on, so the page opens showing everything a player uploaded and the
+  // toggle is an opt-in narrowing rather than a hidden filter.
+  const [includeUnrated, setIncludeUnrated] = useState(true)
   const { progress, data, error } = usePlayerAnalysis(userId, {
     limit: gameCount,
     format,
+    includeUnrated,
   })
 
   const changeFormat = useCallback(
@@ -79,13 +83,11 @@ function Player() {
       activeFormat)
     : null
 
-  // Name the style, so the reader knows why the bands are what they are — a
-  // doubles player seeing "5 turns or fewer" should understand that's the
-  // doubles scale, not a mistake.
+  // The bands themselves say "5 turns or fewer", so they don't need a caption
+  // naming the format style on top — that read as jargon. Say what the widget
+  // is for instead.
   const excludedFromLength = stats?.battlesWithoutTurns ?? 0
-  const lengthSubtitle = `${
-    stats?.battleStyle === 'singles' ? 'Singles' : 'Doubles'
-  } turn bands, shortest first${
+  const lengthSubtitle = `How game length affects winrate${
     excludedFromLength > 0
       ? ` — ${excludedFromLength} battle${
           excludedFromLength === 1 ? '' : 's'
@@ -119,14 +121,11 @@ function Player() {
         } excluded for having no team preview`
       : 'The full team brought together, most-used first'
 
-  // Once we know how many replays exist, step the selection down if it asked
-  // for more than that — otherwise the button would read "200" while the page
-  // showed a 30-game sample.
-  useEffect(() => {
-    if (available === null || gameCount <= available) return
-    const best = largestUsableCount(available)
-    if (best !== null) setGameCount(best)
-  }, [available, gameCount])
+  // The selection is deliberately NOT stepped down to fit what exists. It used
+  // to be, so that the button could never read "200" over a 30-game sample —
+  // but that also meant a player with 58 replays was pinned to 50 and could not
+  // reach the other 8. The picker states the shortfall instead, and the hook
+  // caps the fetch at what is actually there.
 
   return (
     <>
@@ -158,6 +157,33 @@ function Player() {
       </p>
 
       <Row className="g-3 mb-4 align-items-end">
+        <Col xs={12}>
+          {/* Ladder games versus direct challenges. Whether a battle was rated
+              lives in the log, not the replay listing, so this filters after
+              downloading — the sample shrinks rather than reaching for
+              replacements, and the count below says by how much. */}
+          <Form.Check
+            type="switch"
+            id="include-unrated"
+            checked={includeUnrated}
+            disabled={busy}
+            onChange={(event) => setIncludeUnrated(event.target.checked)}
+            label={
+              <>
+                Include unrated games
+                <span className="text-muted small ms-2">
+                  {includeUnrated
+                    ? 'ladder matches and direct challenges'
+                    : `ladder matches only${
+                        data?.unratedExcluded
+                          ? ` — ${data.unratedExcluded} excluded`
+                          : ''
+                      }`}
+                </span>
+              </>
+            }
+          />
+        </Col>
         <Col md={5} lg={4}>
           <FormatFilter
             value={activeFormat}
@@ -193,7 +219,26 @@ function Player() {
 
       {stats && !busy ? (
         stats.totals.battles === 0 ? (
-          activeFormat ? (
+          // The filter emptied the sample. Saying "no replays in this format"
+          // here would be a lie — they have some, we just dropped them all.
+          data.unratedExcluded > 0 ? (
+            <Alert variant="warning">
+              All {data.unratedExcluded}{' '}
+              {data.unratedExcluded === 1 ? 'replay' : 'replays'} found for{' '}
+              <strong>{data.displayName ?? userId}</strong> in{' '}
+              <strong>{formatLabel}</strong>{' '}
+              {data.unratedExcluded === 1 ? 'was' : 'were'} unrated, so there is
+              nothing left to show.{' '}
+              <Alert.Link
+                as="button"
+                className="btn btn-link p-0 align-baseline border-0"
+                onClick={() => setIncludeUnrated(true)}
+              >
+                Include unrated games
+              </Alert.Link>
+              .
+            </Alert>
+          ) : activeFormat ? (
             // Being ranked on a ladder does not mean uploading replays from it.
             // Substituting other formats' data here is what made the page look
             // like it was inventing numbers, so say nothing rather than
@@ -231,7 +276,7 @@ function Player() {
             <Row className="g-3 mb-3">
               <Col xs={6} lg={3}>
                 <StatTile
-                  label="Battles analysed"
+                  label="Battles analyzed"
                   value={stats.totals.battles}
                   // Say plainly how big the pool was, so the sample size can't
                   // be mistaken for the number the user picked.
@@ -375,7 +420,7 @@ function Player() {
               <Col lg={6}>
                 <RankedTable
                   title="Players who beat you more than once"
-                  subtitle="Click a name to analyse them"
+                  subtitle="Click a name to analyze them"
                   rows={stats.rivals}
                   nameHeader="Player"
                   // Keep the format scope when hopping to a rival — you're

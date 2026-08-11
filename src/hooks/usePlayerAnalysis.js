@@ -26,7 +26,7 @@ const replayCache = createCache({ ttl: 30 * 60 * 1000 })
 export const MAX_REPLAY_LIMIT = 200
 const metaCache = createCache()
 
-// Analysing a player is potentially hundreds of requests, so cap how many
+// Analyzing a player is potentially hundreds of requests, so cap how many
 // replays we pull by default and let the user opt into a deeper scan.
 export const DEFAULT_REPLAY_LIMIT = 50
 export const CONCURRENCY = 6
@@ -53,14 +53,22 @@ function countFormats(meta) {
 }
 
 /**
- * Fetch and analyse every available replay for a Showdown username.
+ * Fetch and analyze every available replay for a Showdown username.
  *
  * Returns the analysis plus a `progress` object so the page can show what is
  * happening during what may be a minute of network traffic.
+ *
+ * `includeUnrated: false` drops direct challenges and keeps only ladder games.
+ * Note this necessarily happens AFTER downloading: whether a battle was rated
+ * comes from the `|rated|` line in the log, and the listing's `rating` field
+ * can't stand in for it (measured 2026-08-11: two of forty replays had a null
+ * listing rating on games the log confirmed rated). So the filter shrinks the
+ * sample rather than reaching deeper for replacements — `unratedExcluded` says
+ * by how much, and the caller is expected to show it.
  */
 export function usePlayerAnalysis(
   username,
-  { limit = DEFAULT_REPLAY_LIMIT, format = null } = {},
+  { limit = DEFAULT_REPLAY_LIMIT, format = null, includeUnrated = true } = {},
 ) {
   const [progress, setProgress] = useState(IDLE)
   const [data, setData] = useState(null)
@@ -138,7 +146,7 @@ export function usePlayerAnalysis(
       if (signal.aborted) return
 
       const available = scoped.length
-      // Never claim to analyse more than exists.
+      // Never claim to analyze more than exists.
       const meta = scoped.slice(0, Math.min(limit, available))
 
       if (meta.length === 0) {
@@ -159,7 +167,8 @@ export function usePlayerAnalysis(
           // back full the per-format counts are a floor, not a total.
           totalCapped: allMeta.length >= MAX_REPLAY_LIMIT,
           available,
-          analysed: 0,
+          analyzed: 0,
+          unratedExcluded: 0,
           skipped: 0,
           failed: 0,
         })
@@ -184,7 +193,7 @@ export function usePlayerAnalysis(
 
       if (signal.aborted) return
 
-      setProgress({ phase: 'analysing', done: meta.length, total: meta.length })
+      setProgress({ phase: 'analyzing', done: meta.length, total: meta.length })
 
       const replays = successes(results)
       const battles = replays
@@ -194,12 +203,19 @@ export function usePlayerAnalysis(
       // Newest first, matching the order Showdown lists replays in.
       battles.sort((a, b) => (b.uploadTime ?? 0) - (a.uploadTime ?? 0))
 
+      // Ladder games only, when asked. Everything downstream — stats, the
+      // showcase, the chart — runs on `kept`, so the toggle is honoured
+      // everywhere rather than in one widget.
+      const kept = includeUnrated ? battles : battles.filter((b) => b.rated)
+
       setData({
         userId,
+        // Read the display name off the unfiltered list: excluding unrated
+        // games must not be able to leave us without a name to show.
         displayName: battles[0]?.me.name || username,
         profile: await profilePromise,
-        battles,
-        stats: aggregate(battles),
+        battles: kept,
+        stats: aggregate(kept),
         format: activeFormat,
         formatCounts,
         totalAvailable: allMeta.length,
@@ -207,10 +223,13 @@ export function usePlayerAnalysis(
         // How many public replays exist in the current scope (capped at
         // MAX_REPLAY_LIMIT) versus how many we downloaded for this analysis.
         available,
-        analysed: meta.length,
+        analyzed: meta.length,
         // Replays that downloaded but had no usable log for this user.
         skipped: replays.length - battles.length,
         failed: failureCount(results),
+        // Parsed fine but dropped for being unrated. Zero when the toggle is
+        // on. Distinguishes "no games here" from "no *ladder* games here".
+        unratedExcluded: battles.length - kept.length,
       })
       setProgress({ phase: 'done', done: meta.length, total: meta.length })
     } catch (err) {
@@ -218,7 +237,7 @@ export function usePlayerAnalysis(
       setError(err)
       setProgress({ phase: 'error', done: 0, total: 0 })
     }
-  }, [username, limit, format])
+  }, [username, limit, format, includeUnrated])
 
   useEffect(() => {
     if (!toUserId(username)) {
