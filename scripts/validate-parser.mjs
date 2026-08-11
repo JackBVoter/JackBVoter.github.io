@@ -111,12 +111,18 @@ function checkReplay(replay) {
       }
     }
 
-    // 6. You cannot lose more Pokémon than you brought — which is the team
-    //    size, not a flat six (see 4).
-    if (side.me.fainted.length > side.me.team.length) {
+    // 6. You cannot lose more DISTINCT Pokémon than you brought.
+    //
+    //    Not the raw faint count: Revival Blessing brings a fainted Pokémon
+    //    back, so it can faint twice and the same nickname appears on two
+    //    |faint| lines. Seen live 2026-08-10 in gen9purehackmons-2663042252 —
+    //    14 faint lines over 8 Pokémon, three of them fainting twice. The
+    //    number of *different* Pokémon lost is still bounded by the team.
+    const distinctFainted = new Set(side.me.fainted).size
+    if (distinctFainted > side.me.team.length) {
       fail(
         replay.id,
-        `${label}: ${side.me.fainted.length} faints > team of ${side.me.team.length}`,
+        `${label}: ${distinctFainted} distinct faints > team of ${side.me.team.length}`,
       )
     }
   }

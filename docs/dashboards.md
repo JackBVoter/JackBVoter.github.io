@@ -257,6 +257,17 @@ left out so the widget can say so instead of quietly shrinking its sample. The
 widget is accurate for OU / Ubers / UU / Monotype / VGC, which all use team
 preview.
 
+**A Pokémon can faint more than once.** Revival Blessing puts a fainted Pokémon
+back on the team, so it can be knocked out again and appear on two `|faint|`
+lines. Verified live 2026-08-10: `gen9purehackmons-2663042252` has 14 faint lines
+across 8 Pokémon, three of them fainting twice. Consequences:
+- `me.fainted` / `opponent.fainted` are a log of knockouts, **not** a set of
+  Pokémon lost. Anything that wants "how many did they lose" must dedupe;
+  `stats.knockouts` deliberately does not, because knocking the same Pokémon out
+  twice really is two knockouts.
+- `scripts/validate-parser.mjs` bounds *distinct* faints by team size, not the
+  raw count.
+
 **Six is not a universal team size.** `gen9randombattlesharedpowerb12p6` brings
 **12** (the `b12` in the id), verified live 2026-08-09. Nothing may hard-code six:
 `teamsUsed()` groups whatever the preview lists, the widget copy says "the full
