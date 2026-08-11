@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 function LadderTable({ formatId, formatLabel, players, loading, error }) {
   const navigate = useNavigate()
 
-  // Carry the format through, so a player opened from this ladder is analysed
+  // Carry the format through, so a player opened from this ladder is analyzed
   // in this format rather than across their whole history. Being ranked here
   // doesn't mean they upload replays here — the page has to be able to say
   // "no replays in this format" instead of quietly showing another one's.

@@ -89,7 +89,7 @@ function SearchBar({ autoFocus = false, size = 'lg', showHint = true }) {
         </div>
       ) : showHint ? (
         <Form.Text className="text-muted">
-          Only publicly uploaded replays can be analysed.
+          Only publicly uploaded replays can be analyzed.
         </Form.Text>
       ) : null}
     </Form>

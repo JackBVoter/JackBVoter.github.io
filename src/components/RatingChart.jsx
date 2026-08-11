@@ -4,7 +4,7 @@ import { Card } from 'react-bootstrap'
 import { timeAgo } from '../lib/time.js'
 
 /**
- * "Ladder Rank Over Time" — Elo across the analysed replays, chronological.
+ * "Ladder Rank Over Time" — Elo across the analyzed replays, chronological.
  *
  * Hand-rolled SVG rather than a charting library: this is the app's only chart,
  * and Recharts would roughly double a 100 kB bundle for one line.

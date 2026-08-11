@@ -126,7 +126,7 @@ function ReplayShowcase({ battles = [] }) {
 
       {battles.length > 0 ? (
         <Card.Body className="pt-2 pb-3 text-muted small">
-          Showing all {battles.length} analysed{' '}
+          Showing all {battles.length} analyzed{' '}
           {battles.length === 1 ? 'battle' : 'battles'}. Raise the game count
           above to include more.
         </Card.Body>

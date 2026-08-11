@@ -53,7 +53,7 @@ function emptySide(side) {
  * Parse one replay into a normalised battle record from `userId`'s point of view.
  *
  * @param {object} replay - the object returned by fetchReplay()
- * @param {string} userId - normalised userid of the player we are analysing
+ * @param {string} userId - normalised userid of the player we are analyzing
  * @returns {object|null} null when the log is unusable or the user isn't in it
  */
 export function parseReplay(replay, userId) {
@@ -189,7 +189,7 @@ export function parseReplay(replay, userId) {
     }
   }
 
-  // Which side is the player we're analysing? Prefer the names in the log, and
+  // Which side is the player we're analyzing? Prefer the names in the log, and
   // fall back to the metadata player list for logs with malformed |player| lines.
   let mySide = null
   if (toUserId(sides.p1.name) === userId) mySide = 'p1'

@@ -1,7 +1,7 @@
 /**
  * Run an async `worker` over `items` with at most `concurrency` in flight.
  *
- * Analysing a player means one HTTP request per replay, which can be hundreds.
+ * Analyzing a player means one HTTP request per replay, which can be hundreds.
  * Firing them all at once would hammer Showdown and get us rate-limited, so we
  * keep a small fixed number of workers pulling from a shared cursor.
  *

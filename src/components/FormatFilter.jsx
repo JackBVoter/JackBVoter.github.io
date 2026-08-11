@@ -46,7 +46,7 @@ function FormatFilter({
       <Form.Select
         value={value ?? ''}
         disabled={disabled || formatCounts.length === 0}
-        aria-label="Choose which format's games to analyse"
+        aria-label="Choose which format's games to analyze"
         onChange={(event) => onChange(event.target.value || null)}
       >
         {/* An empty list means either "still counting" or "this player has

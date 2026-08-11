@@ -42,13 +42,13 @@ All of the player's dashboards (widgets below).
 ### Player page
 | Widget | Meaning |
 |---|---|
-| See Data From How Many Games? | User-controlled sample size — how many replays to analyse |
+| See Data From How Many Games? | User-controlled sample size — how many replays to analyze |
 | ~~Formats~~ | **Removed 2026-08-09.** Every dashboard is now scoped to exactly one format (chosen in the filter, carried in the URL), so this table was a single row restating the filter. The format *picker* remains; the breakdown widget does not |
 | Most Used Team | The player's most-brought **whole teams** — one row per distinct set brought together, not per Pokémon (changed 2026-08-09) |
 | Most Common Wins | **Opposing** Pokémon appearing most often in the player's **wins** |
 | Most Common Loses | **Opposing** Pokémon appearing most often in the player's **losses** |
 | Players who beat you more than once | Opponents with 2+ wins against this player |
-| Ladder Rank Over Time | Elo across the analysed replays, chronological (line chart) |
+| Ladder Rank Over Time | Elo across the analyzed replays, chronological (line chart) |
 | Most Used Tera | Most-chosen Tera types |
 | Replay Showcase | Links out to individual replays (new tab) |
 
@@ -298,7 +298,7 @@ is declined) against live replays.
   label — is it the same thing as the format view's replay dashboard?~~ Answered
   2026-08-10: **two different things, both now built.** The Figma frame is the
   start page's "recent replays from top-100 players" (`ReplayList`, driven by
-  `useTopPlayerReplays`). The player-page widget is *that player's* own analysed
+  `useTopPlayerReplays`). The player-page widget is *that player's* own analyzed
   battles (`ReplayShowcase`), which additionally knows each result and turn count
   because those replays have been parsed.
 - ~~How many replays should "See Data From How Many Games?" offer?~~ Answered
@@ -314,7 +314,7 @@ is declined) against live replays.
   Offering "200" to someone with 30 replays implies a 200-game sample and
   quietly delivers 30 — a misleading number, which is the one thing a stats site
   must not print. If the current selection exceeds what exists, it steps down to
-  the largest usable option, and the "Battles analysed" tile reads
+  the largest usable option, and the "Battles analyzed" tile reads
   "of N available".
 
   To know the true count we always fetch the replay *listing* up to 200 (at most
