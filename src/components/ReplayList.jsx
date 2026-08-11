@@ -22,7 +22,7 @@ function ReplayList({ formatLabel, replays, loading, error }) {
   return (
     <Card className="h-100 shadow-sm">
       <Card.Header className="fw-semibold">
-        Recent replays — {formatLabel}
+        Recent Replays — {formatLabel}
       </Card.Header>
 
       {loading ? (
