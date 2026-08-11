@@ -99,8 +99,6 @@ statistics, and the per-format sample-size limitation.
 STILL UNBUILT
 Nothing from the widget spec - every dashboard in docs/dashboards.md is built.
 Outstanding, all minor:
-- No WaterIC_XY.png in src/assets, so Water Tera renders as plain text beside the
-  other icons.
 - No catch-all 404 route; an unknown URL renders an empty page.
 - Win-rate rankings have no minimum-sample floor, so a 1-battle 100% can outrank
   a well-evidenced matchup.

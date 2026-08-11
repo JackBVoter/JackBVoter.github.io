@@ -24,9 +24,10 @@ const ICONS = Object.fromEntries(
 /**
  * The icon for a type, or null when we don't have one.
  *
- * Null is a real case, not a defensive branch: as of 2026-08-10 there is no
- * Water icon in src/assets, and Water is a common Tera type. Callers must have
- * a text fallback.
+ * All 19 types are covered as of 2026-08-10, so null should not occur in
+ * practice — but callers keep their text fallback. It costs a line, and it is
+ * what stopped a missing Water icon from rendering a blank cell earlier the
+ * same day.
  *
  * @param {string} type - e.g. "Fire", from the battle protocol's
  *   |-terastallize| line, which capitalises it
