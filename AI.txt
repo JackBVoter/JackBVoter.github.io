@@ -1,6 +1,6 @@
 AI ASSISTANCE RECORD
 Project: Trackinch Stats (a Pokémon Showdown statistics site)
-Session: 2026-07-26
+Sessions: 2026-07-12, 2026-07-14, 2026-07-26, 2026-08-09/10
 Tool: Claude (Claude Code)
 
 RESEARCH & SPECIFICATION
@@ -8,42 +8,99 @@ RESEARCH & SPECIFICATION
   (51 per page), ladder (500 players, CORS-open), user lookup, format filters.
 - Recovered the design from Untitled.fig (ZIP -> zstd -> Kiwi binary) to extract
   widget names and an embedded design question.
-- Wrote docs/dashboards.md as the project specification.
+- Wrote docs/dashboards.md as the project specification, and kept it current as
+  decisions changed.
 
 SAFETY TOOLING
 - Added RULE #0 to CLAUDE.md after writing a scratch folder outside the project.
 - Built an enforcing PreToolUse hook (.claude/hooks/guard-paths.mjs) that blocks
   writes outside the project directory and any outbound upload. 32 passing tests.
+- The rule held under pressure later: on 2026-08-10 it blocked reads of a
+  documentation bundle stored in %TEMP%. Rather than route around it, the
+  assistant stopped and asked; Jack chose to proceed without those files.
 
 CODE WRITTEN
 - API layer, concurrency-limited fetching, TTL caching.
-- Battle-log parser, validated against 39 live replays across 17 formats.
+- Battle-log parser, validated against live replays across many formats.
 - Statistics aggregation.
 - Start page: six format buttons, top-100 ladder, recent top-100 replays linking
   out to Showdown, player search with real "user not found" validation.
-- Player page: game-count control, progress UI, four headline tiles, six ranked
-  widgets (formats, most used team, most common wins/loses, repeat rivals, most
-  used Tera), and per-format scoping.
+- Player page: format scoping, game-count control, progress UI, four headline
+  tiles, and the widgets — Most Used Team (whole teams), Most Common Wins,
+  Most Common Loses, repeat rivals, Most Used Tera, Win Rate by Game Length,
+  Ladder Rank Over Time, and the Replay Showcase.
+- Ladder Rank Over Time is hand-rolled SVG rather than a charting library:
+  Recharts would have roughly doubled a 100 kB bundle for one chart. Cost 1.8 kB.
+- Trapinch theme in a single removable CSS file, plus Pokémon type icons.
 
 BUGS FOUND AND FIXED
+Earlier sessions:
 - Parser silently mishandled four-player Free-For-All battles.
 - User lookup treated every typo as a valid account.
 - Player page blended formats, showing Terastallization stats for a format that
   has none.
 - Showdown's pagination returns duplicate replays, double-counting statistics.
 
+2026-08-09/10:
+- "50 games" pulled 50 replays spread across every format a player had touched
+  rather than 50 of the selected one. Jack caught this from using the app.
+- search.json matches its format parameter as a SUFFIX, so asking for gen9ou also
+  returned smogtours-gen9ou - a different format everywhere else in the app.
+  Found by testing three top ladder players, not by reading documentation.
+- The forfeit flag was battle-level, so a "forfeit" tag beside the opponent's
+  name claimed they gave up when it was just as often the player. Caught because
+  a sample had 16 forfeits but only 7 losses.
+- The public-replay caveat was the else-branch of a loading check, so it vanished
+  the moment the statistics it qualifies appeared.
+- Type icons fell under Vite's inline threshold and were base64'd into the main
+  JS chunk, adding ~14 kB gzip to every page load including pages with no types.
+- Full-bleed replay tables spilled past the cards' rounded corners.
+- Bootstrap's default muted grey measured 4.40:1 on the new themed background - a
+  contrast failure, on text used throughout the app. Caught by computing the
+  ratios rather than eyeballing them.
+Two wrong assumptions in the project's own verification script:
+- It assumed six is the maximum team size; gen9randombattlesharedpowerb12p6
+  brings twelve.
+- It assumed a Pokémon can faint only once; Revival Blessing revives one, and
+  gen9purehackmons-2663042252 has 14 faint lines across 8 Pokémon.
+
+METHOD
+Behaviour was verified against live Showdown data rather than assumed - each
+change was checked by fetching real replays and inspecting the parsed output, and
+several of the bugs above were found that way. Colour choices were validated with
+WCAG contrast calculations. Two scripts guard regressions:
+scripts/validate-parser.mjs and .claude/hooks/guard-paths.test.mjs.
+
 HUMAN DIRECTION
 Jack Byers set the requirements, supplied the Figma design, defined every widget,
-and caught two significant defects: the misleading cross-format statistics and
-the per-format sample-size limitation. Scope, pacing, and design decisions were
-theirs throughout.
+and directed every change below. Scope, pacing, and design decisions were his
+throughout.
 
-On 2026-08-09/10 they directed four further changes, each from their own reading
-of the running app: the game count had to mean games *of the selected format*;
-"Most Used Team" had to show whole teams rather than individual Pokemon; ranked
-tables could choose a sort column but not flip its direction, because a 90% win
-rate at the top of a "lost to" table misleads; and the placeholder nav links came
-out. They also chose the hand-rolled SVG chart over adding a charting library.
+Earlier sessions: he caught two significant defects - the misleading cross-format
+statistics, and the per-format sample-size limitation.
+
+2026-08-09/10, each from his own reading of the running app:
+- The game count had to mean games *of the selected format*.
+- "Most Used Team" had to show whole teams brought together, not a tally of
+  individual Pokémon.
+- Ranked tables could choose a sort column but not flip its direction, because a
+  90% win rate at the top of a "lost to" table misleads. He first asked for
+  sortable columns, reviewed the result, and cut the capability back.
+- The placeholder nav links came out.
+- He chose hand-rolled SVG over adding a charting library.
+- He specified the Trapinch theme, rejected the first attempt for being too brown
+  ("Trapinch isn't really brown, he's orange"), and the palette was rebuilt.
+- He asked whether singles and doubles could be told apart reliably before
+  specifying Win Rate by Game Length, and set the turn buckets for both styles.
+- He supplied the mascot art and the type icons.
+- He corrected the assistant's working practice of starting background dev
+  servers unasked.
 
 STILL UNBUILT
-Nothing from the widget spec. All dashboards in docs/dashboards.md are built.
+Nothing from the widget spec - every dashboard in docs/dashboards.md is built.
+Outstanding, all minor:
+- No WaterIC_XY.png in src/assets, so Water Tera renders as plain text beside the
+  other icons.
+- No catch-all 404 route; an unknown URL renders an empty page.
+- Win-rate rankings have no minimum-sample floor, so a 1-battle 100% can outrank
+  a well-evidenced matchup.
