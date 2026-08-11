@@ -11,6 +11,7 @@ import ReplayShowcase from '../components/ReplayShowcase.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 import { DEFAULT_GAME_COUNT, largestUsableCount } from '../lib/gameCounts.js'
 import StatTile from '../components/StatTile.jsx'
+import TypeLabel from '../components/TypeLabel.jsx'
 import { usePlayerAnalysis } from '../hooks/usePlayerAnalysis.js'
 import { toUserId } from '../api/showdown.js'
 import { findFormat } from '../data/formats.js'
@@ -77,6 +78,20 @@ function Player() {
       findFormat(activeFormat)?.label ??
       activeFormat)
     : null
+
+  // Name the style, so the reader knows why the bands are what they are — a
+  // doubles player seeing "5 turns or fewer" should understand that's the
+  // doubles scale, not a mistake.
+  const excludedFromLength = stats?.battlesWithoutTurns ?? 0
+  const lengthSubtitle = `${
+    stats?.battleStyle === 'singles' ? 'Singles' : 'Doubles'
+  } turn bands, shortest first${
+    excludedFromLength > 0
+      ? ` — ${excludedFromLength} battle${
+          excludedFromLength === 1 ? '' : 's'
+        } with no recorded turns excluded`
+      : ''
+  }`
 
   // Their most-played format, offered as a way out when the selected one is
   // empty. Never offer the format we are already showing.
@@ -382,12 +397,34 @@ function Player() {
                 />
               </Col>
 
+              {/* Only when we know the style: the bands differ between
+                  singles and doubles, so with an unreadable sample there is no
+                  honest set of thresholds to use. */}
+              {stats.battleStyle ? (
+                <Col lg={6}>
+                  <RankedTable
+                    title="Win Rate by Game Length"
+                    subtitle={lengthSubtitle}
+                    rows={stats.lengthBands}
+                    nameHeader="Game length"
+                    // An ordered series, shortest to longest — not a ranking,
+                    // so no position numbers and no re-sorting.
+                    showRank={false}
+                    columns={[
+                      countColumn('Battles', (r) => r.battles),
+                      winRateColumn(),
+                    ]}
+                  />
+                </Col>
+              ) : null}
+
               <Col lg={6}>
                 <RankedTable
                   title="Most Used Tera"
                   subtitle="Tera types you chose"
                   rows={stats.teraTypes}
                   nameHeader="Tera type"
+                  renderName={(row) => <TypeLabel type={row.key} />}
                   columns={[
                     countColumn('Times', (r) => r.battles),
                     winRateColumn(),

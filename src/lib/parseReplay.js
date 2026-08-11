@@ -16,10 +16,13 @@ function speciesFromDetails(details) {
 }
 
 /**
- * Split a position token into side and nickname.
- * "p1a: Friendly Giant" -> { side: 'p1', key: 'p1:Friendly Giant' }
- * The letter is the on-field slot (doubles/triples use a, b, c) and is not part
- * of a Pokémon's identity, so we drop it when tracking who is who.
+ * Split a position token into side, slot and nickname.
+ * "p1a: Friendly Giant" -> { side: 'p1', slot: 'a', key: 'p1:Friendly Giant' }
+ *
+ * The slot letter is the on-field position (doubles/triples use a, b, c). It is
+ * not part of a Pokémon's identity, so `key` drops it — but it is returned
+ * separately because how many slots a battle uses is the only trustworthy way
+ * to tell singles from doubles. See `activePerSide` below.
  */
 function parsePosition(token) {
   const raw = String(token ?? '')
@@ -27,10 +30,11 @@ function parsePosition(token) {
   if (colon === -1) return null
 
   const side = raw.slice(0, 2) // "p1" / "p2"
+  const slot = raw.slice(2, colon) // "a" / "b" / "c"
   const nickname = raw.slice(colon + 1).trim()
   if (side !== 'p1' && side !== 'p2') return null
 
-  return { side, nickname, key: `${side}:${nickname}` }
+  return { side, slot, nickname, key: `${side}:${nickname}` }
 }
 
 function emptySide(side) {
@@ -76,6 +80,11 @@ export function parseReplay(replay, userId) {
   let tie = false
   let forfeited = false
   let forfeitedBy = null
+  // Distinct on-field slot letters. One = singles, two = doubles, three =
+  // triples. Derived from the log rather than the format name, because the
+  // names can't be enumerated reliably — gen9championsvgc2026regmb and
+  // gen9championsvgc2026regmbbo3 are both doubles and neither says "doubles".
+  const slotsSeen = new Set()
   let rated = false
   let tier = replay.format ?? ''
 
@@ -113,6 +122,7 @@ export function parseReplay(replay, userId) {
         const pos = parsePosition(parts[2])
         const species = speciesFromDetails(parts[3])
         if (!pos || !species) break
+        if (pos.slot) slotsSeen.add(pos.slot)
         nicknames.set(pos.key, species)
         if (!sides[pos.side].revealed.includes(species)) {
           sides[pos.side].revealed.push(species)
@@ -229,6 +239,10 @@ export function parseReplay(replay, userId) {
     turns,
     result,
     forfeited,
+    // 1 = singles, 2 = doubles, 3 = triples. Null when the log had no switch
+    // lines at all (an incomplete upload) — callers must treat that as unknown
+    // rather than defaulting to singles.
+    activePerSide: slotsSeen.size || null,
     me: {
       name: me.name || replay.players?.[mySide === 'p1' ? 0 : 1] || '',
       elo: me.elo,

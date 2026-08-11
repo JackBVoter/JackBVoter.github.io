@@ -71,6 +71,10 @@ function RankedTable({
   // Some rows aren't a name but a composition — six Pokémon that need room to
   // wrap. Truncating those to one line would hide most of the row's content.
   wideName = false,
+  // Not every table is a ranking. Turn-length bands are an ordered series, and
+  // numbering them 1..4 would imply "1 is the best" when it only means
+  // "shortest".
+  showRank = true,
   max = 10,
   empty = 'Nothing to show yet.',
 }) {
@@ -118,9 +122,11 @@ function RankedTable({
           <Table size="sm" hover responsive className="mb-1 align-middle">
             <thead>
               <tr>
-                <th style={{ width: '2.5rem' }} className="text-muted fw-normal">
-                  #
-                </th>
+                {showRank ? (
+                  <th style={{ width: '2.5rem' }} className="text-muted fw-normal">
+                    #
+                  </th>
+                ) : null}
                 <th className="text-muted fw-normal">{nameHeader}</th>
                 {columns.map((column) => {
                   const canSort = sortableColumns.includes(column)
@@ -175,7 +181,7 @@ function RankedTable({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
-                  <td className="text-muted">{index + 1}</td>
+                  {showRank ? <td className="text-muted">{index + 1}</td> : null}
                   <td
                     className={wideName ? 'w-100' : 'text-truncate'}
                     style={wideName ? undefined : { maxWidth: '11rem' }}

@@ -46,6 +46,91 @@ function byUsage(a, b) {
 }
 
 /**
+ * Is this a singles or a doubles format?
+ *
+ * Decided across the whole sample rather than per battle. An incomplete upload
+ * has no switch lines and so reports nothing, but one silent replay among
+ * dozens can't outvote the rest — measured on live data, 24 of 25 OU replays
+ * and 25 of 25 VGC replays gave a usable signal.
+ *
+ * Because the page is always scoped to one format, the answer should be
+ * unanimous; a format is singles or doubles by definition. A split verdict
+ * means something is wrong, so it resolves to null (unknown) rather than
+ * quietly taking the majority and showing the wrong buckets.
+ */
+function detectBattleStyle(battles) {
+  const counts = new Map()
+  for (const battle of battles) {
+    if (!battle.activePerSide) continue
+    counts.set(battle.activePerSide, (counts.get(battle.activePerSide) ?? 0) + 1)
+  }
+  if (counts.size !== 1) return null
+
+  const [active] = counts.keys()
+  return active === 1 ? 'singles' : active === 2 ? 'doubles' : 'triples'
+}
+
+// How long a game runs means completely different things in the two styles:
+// doubles resolves far faster because twice as much happens per turn. Sharing
+// one set of thresholds would put every doubles game in the shortest bucket.
+const LENGTH_BUCKETS = {
+  singles: [
+    { key: 'Under 20 turns', max: 19 },
+    { key: '20–39 turns', max: 39 },
+    { key: '40–74 turns', max: 74 },
+    { key: '75+ turns', max: Infinity },
+  ],
+  doubles: [
+    { key: '5 turns or fewer', max: 5 },
+    { key: '6–10 turns', max: 10 },
+    { key: '11+ turns', max: Infinity },
+  ],
+}
+// Triples is doubles-like in pace and far too rare to justify its own scale.
+LENGTH_BUCKETS.triples = LENGTH_BUCKETS.doubles
+
+/**
+ * "Win Rate by Game Length" — results grouped into turn-count bands.
+ *
+ * Returned in ascending length order, NOT ranked by usage: the shape of the
+ * series is the point ("I lose the long ones"), and sorting by battle count
+ * would scramble it.
+ *
+ * Battles with no recorded turn count are excluded rather than counted as
+ * zero-turn games, which would pile incomplete uploads into the shortest
+ * bucket and drag its win rate toward nonsense.
+ */
+function winRateByLength(battles, style) {
+  const buckets = LENGTH_BUCKETS[style]
+  if (!buckets) return []
+
+  const rows = buckets.map((bucket) => ({
+    key: bucket.key,
+    battles: 0,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+  }))
+
+  for (const battle of battles) {
+    if (!battle.turns) continue
+    const index = buckets.findIndex((bucket) => battle.turns <= bucket.max)
+    if (index === -1) continue
+    const row = rows[index]
+    row.battles += 1
+    if (battle.result === 'win') row.wins += 1
+    else if (battle.result === 'loss') row.losses += 1
+    else if (battle.result === 'tie') row.ties += 1
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    decided: row.wins + row.losses,
+    winRate: rate(row.wins, row.wins + row.losses),
+  }))
+}
+
+/**
  * Whole teams the player brought, most-used first — one row per distinct set of
  * six, not per Pokémon.
  *
@@ -136,6 +221,12 @@ export function aggregate(battles) {
   // "Most Used Team" — whole teams, one row per distinct six.
   const teams = teamsUsed(battles)
 
+  const battleStyle = detectBattleStyle(battles)
+  const lengthBands = winRateByLength(battles, battleStyle)
+  // Games with no turn count can't be placed in a band; surfaced so the widget
+  // can account for a total that doesn't match the headline battle count.
+  const battlesWithoutTurns = battles.filter((b) => !b.turns).length
+
   // Battles that couldn't contribute a team, so the widget can say why its
   // sample is smaller than the headline battle count instead of silently
   // dropping games.
@@ -213,6 +304,11 @@ export function aggregate(battles) {
     formats,
     teams,
     battlesWithoutTeamPreview,
+    // 'singles' | 'doubles' | 'triples' | null. Null means the sample couldn't
+    // say, so anything style-specific should hide rather than guess.
+    battleStyle,
+    lengthBands,
+    battlesWithoutTurns,
     opposing: [...opposing].sort(byUsage),
     commonWins,
     commonLoses,
