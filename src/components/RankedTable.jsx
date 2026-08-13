@@ -55,7 +55,7 @@ export function winRateColumn(header = 'Win rate', { sortDir = 'desc' } = {}) {
  *
  * @param {object[]} rows - pre-sorted; used as-is when not sortable
  * @param {object[]} columns - { header, cell(row), align?, className?, hideOn?,
- *   sortValue?(row), sortDir?: 'desc'|'asc', sortRank?(row) }
+ *   width?, sortValue?(row), sortDir?: 'desc'|'asc', sortRank?(row) }
  * @param {boolean} sortable - opt-in: some widgets are a deliberate ranking
  *   where re-ordering would undercut the point of the widget.
  */
@@ -74,6 +74,12 @@ function RankedTable({
   // Some rows aren't a name but a composition — six Pokémon that need room to
   // wrap. Truncating those to one line would hide most of the row's content.
   wideName = false,
+  // Give the name column a share rather than letting it take everything.
+  // Without this a `wideName` column is `w-100`, which squeezes every other
+  // column to its minimum width and piles them up against the right edge.
+  // Use a percentage, not a fixed width, so narrow screens scale instead of
+  // forcing the responsive wrapper to scroll.
+  nameWidth,
   // Not every table is a ranking. Turn-length bands are an ordered series, and
   // numbering them 1..4 would imply "1 is the best" when it only means
   // "shortest".
@@ -130,7 +136,12 @@ function RankedTable({
                     #
                   </th>
                 ) : null}
-                <th className="text-muted fw-normal">{nameHeader}</th>
+                <th
+                  className="text-muted fw-normal"
+                  style={nameWidth ? { width: nameWidth } : undefined}
+                >
+                  {nameHeader}
+                </th>
                 {columns.map((column) => {
                   const canSort = sortableColumns.includes(column)
                   const active = sortColumn === column
@@ -141,6 +152,7 @@ function RankedTable({
                       className={`text-muted fw-normal text-${column.align ?? 'end'} ${
                         column.hideOn ?? ''
                       }`}
+                      style={column.width ? { width: column.width } : undefined}
                       aria-sort={
                         active ? (lowestFirst ? 'ascending' : 'descending') : undefined
                       }
@@ -187,7 +199,9 @@ function RankedTable({
                 >
                   {showRank ? <td className="text-muted">{index + 1}</td> : null}
                   <td
-                    className={wideName ? 'w-100' : 'text-truncate'}
+                    className={
+                      wideName ? (nameWidth ? undefined : 'w-100') : 'text-truncate'
+                    }
                     style={wideName ? undefined : { maxWidth: '11rem' }}
                   >
                     {renderName(row)}

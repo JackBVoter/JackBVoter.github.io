@@ -32,10 +32,11 @@ function TeamBadges({ members }) {
   )
 }
 
-const countColumn = (header, pick, hideOn) => ({
+const countColumn = (header, pick, hideOn, width) => ({
   header,
   align: 'end',
   hideOn,
+  width,
   cell: pick,
   // A count column only ever reads one way: "you beat Kingambit 13 times" is
   // the headline, "you beat Amoonguss twice" is not. Tables without `sortable`
@@ -163,7 +164,7 @@ function Player() {
   const excludedFromTeams = fullStats?.battlesWithoutTeamPreview ?? 0
   // "The full team" rather than "the six": most formats bring six, but not all
   // do — gen9randombattlesharedpowerb12p6 brings twelve.
-  const teamSubtitle = `The full team brought together, most-used first — pick one to scope the whole page to it${
+  const teamSubtitle = `The full team brought together, most-used first — pick one to scope the whole page to it, click it again to clear${
     excludedFromTeams > 0
       ? ` · ${excludedFromTeams} battle${
           excludedFromTeams === 1 ? '' : 's'
@@ -436,34 +437,55 @@ function Player() {
                   rows={fullStats.teams}
                   nameHeader="Team"
                   wideName
+                  // Six badges still need most of the row, but not all of it —
+                  // `w-100` was crushing the other three columns together
+                  // against the right edge.
+                  nameWidth="50%"
                   rowClass={(row) =>
                     row.key === selectedTeam?.key ? 'table-active' : undefined
                   }
                   renderName={(row) => <TeamBadges members={row.members} />}
                   columns={[
-                    countColumn('Battles', (r) => r.battles),
-                    winRateColumn(),
+                    countColumn('Battles', (r) => r.battles, undefined, '12%'),
+                    { ...winRateColumn(), width: '14%' },
                     {
                       header: 'Filter by team',
                       align: 'center',
+                      width: '16%',
                       // Radios rather than checkboxes: one team at a time is
-                      // the rule, and a radio group is the control that says
-                      // so without having to be told. Clearing is the button
-                      // in the banner above, since a radio can't unset itself.
-                      cell: (row) => (
-                        <Form.Check
-                          type="radio"
-                          name="team-filter"
-                          className="d-inline-block"
-                          id={`team-filter-${row.key}`}
-                          checked={row.key === selectedTeam?.key}
-                          onChange={() => setTeamKey(row.key)}
-                          aria-label={`Show only games with ${row.members
-                            .map(displaySpecies)
-                            .join(', ')}`}
-                          title="Show the whole page for just this team"
-                        />
-                      ),
+                      // the rule, and a radio group is the control that says so
+                      // without having to be told.
+                      //
+                      // Clicking the selected one clears it. A radio can't
+                      // normally unset itself, so this is handled explicitly:
+                      // a click on an already-checked radio fires `click` but
+                      // NOT `change`, so the two handlers never both act. (The
+                      // pair is also order-independent — if a browser did fire
+                      // both, the result is still "cleared".)
+                      cell: (row) => {
+                        const isSelected = row.key === selectedTeam?.key
+                        return (
+                          <Form.Check
+                            type="radio"
+                            name="team-filter"
+                            className="d-inline-block"
+                            id={`team-filter-${row.key}`}
+                            checked={isSelected}
+                            onChange={() => setTeamKey(row.key)}
+                            onClick={() => {
+                              if (isSelected) setTeamKey(null)
+                            }}
+                            aria-label={`Show only games with ${row.members
+                              .map(displaySpecies)
+                              .join(', ')}`}
+                            title={
+                              isSelected
+                                ? 'Clear the filter and show all teams again'
+                                : 'Show the whole page for just this team'
+                            }
+                          />
+                        )
+                      },
                     },
                   ]}
                   empty={

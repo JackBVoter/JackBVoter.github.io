@@ -60,7 +60,10 @@ own Pokémon by win rate, and head-to-head records vs other players).
 Each row of `Most Used Team` carries a **"Filter by team"** radio. Selecting one
 re-scopes **every widget on the page** — tiles, rating chart, matchups, rivals,
 game length, Tera, replay showcase — to only the games where that team was
-brought. **One team at a time**, hence radios rather than checkboxes.
+brought. **One team at a time**, hence radios rather than checkboxes. Clicking
+the selected radio again clears the filter — a radio can't unset itself, so the
+row handles `click` (which fires on an already-checked radio) alongside `change`
+(which does not).
 
 Rules this has to follow:
 - **No re-fetch.** The replays are already downloaded and parsed, so the filter
@@ -75,7 +78,12 @@ Rules this has to follow:
   aggregate.
 - **Say the scope out loud.** A banner above the dashboards names the team and
   offers "Show all teams"; a checked radio further down the page is not enough
-  to explain why every number changed.
+  to explain why every number changed. It is also the keyboard route out, since
+  arrow-key navigation within a radio group can't deselect.
+- **Column widths are percentages, not fixed.** The team column is `nameWidth
+  ="50%"` rather than `w-100`, which was squeezing Battles / Win rate / Filter
+  into a scrunched pile on the right. Percentages let narrow screens scale
+  instead of forcing the `.table-responsive` wrapper to scroll.
 - **Cleared on a format change** (the six can't be legal in another format), but
   *not* on a game-count or unrated-toggle change — there the user is adjusting
   the sample for the team they're already reading.
