@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Col, Form, Row } from 'react-bootstrap'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -15,8 +15,22 @@ import TypeLabel from '../components/TypeLabel.jsx'
 import { usePlayerAnalysis } from '../hooks/usePlayerAnalysis.js'
 import { toUserId } from '../api/showdown.js'
 import { findFormat } from '../data/formats.js'
+import { aggregate, teamKeyOf } from '../lib/aggregate.js'
 import { displaySpecies } from '../lib/species.js'
 import { timeAgo } from '../lib/time.js'
+
+/** The six (or however many) a team is, as badges. */
+function TeamBadges({ members }) {
+  return (
+    <div className="d-flex flex-wrap gap-1">
+      {members.map((member) => (
+        <span key={member} className="badge text-bg-secondary fw-normal">
+          {displaySpecies(member)}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 const countColumn = (header, pick, hideOn) => ({
   header,
@@ -65,9 +79,36 @@ function Player() {
     [searchParams, setSearchParams],
   )
 
+  // "Most Used Team" doubles as a filter: pick a team and every widget below
+  // re-reads from just those games. One team at a time — the question it
+  // answers is "how does this team do?", and two teams at once is only the
+  // unfiltered page with extra steps.
+  const [teamKey, setTeamKey] = useState(null)
+
   const busy = progress.phase !== 'done' && progress.phase !== 'idle' && progress.phase !== 'error'
-  const stats = data?.stats
+  // Everything the analysis found, before the team filter. The team widget is
+  // the filter's own control, so it always lists every team — narrowing it to
+  // the selected row would take away the way back out.
+  const fullStats = data?.stats
   const available = typeof data?.available === 'number' ? data.available : null
+
+  // A stale key (the team is gone after a format change, a smaller sample, or
+  // hiding unrated games) simply reads as no filter rather than an empty page.
+  const selectedTeam = fullStats?.teams.find((team) => team.key === teamKey) ?? null
+
+  // No re-fetch: the replays are already downloaded and parsed, so scoping to a
+  // team is a re-count over a subset. Cheap enough to do synchronously.
+  const battles = useMemo(
+    () =>
+      selectedTeam
+        ? (data?.battles ?? []).filter((b) => teamKeyOf(b) === selectedTeam.key)
+        : (data?.battles ?? []),
+    [data?.battles, selectedTeam],
+  )
+  const stats = useMemo(
+    () => (selectedTeam ? aggregate(battles) : fullStats),
+    [selectedTeam, battles, fullStats],
+  )
 
   // Arriving without ?format= (a plain search, rather than a ladder click) lets
   // the hook pick the player's most-played format. Read the scope back from the
@@ -108,18 +149,27 @@ function Player() {
     changeFormat(data.format)
   }, [format, data?.format, changeFormat])
 
+  // Teams don't survive a change of format — different legal Pokémon, so the
+  // selected six can't exist in the new one. Deliberately NOT reset when the
+  // game count or the unrated toggle changes: there the user is adjusting the
+  // sample for the team they're already looking at.
+  useEffect(() => {
+    setTeamKey(null)
+  }, [activeFormat])
+
   // A team can only be identified when the replay has team preview. Random
   // Battle has none, so those battles contribute no team at all — say how many
   // were left out rather than showing a smaller sample without explanation.
-  const excludedFromTeams = stats?.battlesWithoutTeamPreview ?? 0
+  const excludedFromTeams = fullStats?.battlesWithoutTeamPreview ?? 0
   // "The full team" rather than "the six": most formats bring six, but not all
   // do — gen9randombattlesharedpowerb12p6 brings twelve.
-  const teamSubtitle =
+  const teamSubtitle = `The full team brought together, most-used first — pick one to scope the whole page to it${
     excludedFromTeams > 0
-      ? `The full team brought together, most-used first — ${excludedFromTeams} battle${
+      ? ` · ${excludedFromTeams} battle${
           excludedFromTeams === 1 ? '' : 's'
         } excluded for having no team preview`
-      : 'The full team brought together, most-used first'
+      : ''
+  }`
 
   // The selection is deliberately NOT stepped down to fit what exists. It used
   // to be, so that the button could never read "200" over a 30-game sample —
@@ -205,6 +255,30 @@ function Player() {
         </Col>
       </Row>
 
+      {/* The team filter changes every number below it, so it gets said at the
+          top next to the other scope controls — not left implicit in a checked
+          radio further down the page. */}
+      {selectedTeam && !busy ? (
+        <Alert
+          variant="secondary"
+          className="py-2 d-flex flex-wrap align-items-center gap-2"
+        >
+          <span className="small">
+            Showing only the {selectedTeam.battles}{' '}
+            {selectedTeam.battles === 1 ? 'game' : 'games'} with this team:
+          </span>
+          <TeamBadges members={selectedTeam.members} />
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            className="ms-auto"
+            onClick={() => setTeamKey(null)}
+          >
+            Show all teams
+          </Button>
+        </Alert>
+      ) : null}
+
       {busy ? (
         <div className="mb-4">
           <AnalysisProgress progress={progress} />
@@ -281,11 +355,16 @@ function Player() {
                   // Say plainly how big the pool was, so the sample size can't
                   // be mistaken for the number the user picked.
                   hint={
-                    available !== null && available > stats.totals.battles
-                      ? `of ${available} available`
-                      : stats.lastBattle
-                        ? `most recent ${timeAgo(stats.lastBattle)}`
-                        : null
+                    // With a team selected, "of 200 available" would compare a
+                    // team's games against every replay in the format. Compare
+                    // against the sample it was filtered out of instead.
+                    selectedTeam
+                      ? `of ${fullStats.totals.battles} in this format`
+                      : available !== null && available > stats.totals.battles
+                        ? `of ${available} available`
+                        : stats.lastBattle
+                          ? `most recent ${timeAgo(stats.lastBattle)}`
+                          : null
                   }
                 />
               </Col>
@@ -352,27 +431,43 @@ function Player() {
                 <RankedTable
                   title="Most Used Team"
                   subtitle={teamSubtitle}
-                  rows={stats.teams}
+                  // Always the unfiltered list: this table is the filter's
+                  // control, so it has to keep offering the other teams.
+                  rows={fullStats.teams}
                   nameHeader="Team"
                   wideName
-                  renderName={(row) => (
-                    <div className="d-flex flex-wrap gap-1">
-                      {row.members.map((member) => (
-                        <span
-                          key={member}
-                          className="badge text-bg-secondary fw-normal"
-                        >
-                          {displaySpecies(member)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  rowClass={(row) =>
+                    row.key === selectedTeam?.key ? 'table-active' : undefined
+                  }
+                  renderName={(row) => <TeamBadges members={row.members} />}
                   columns={[
                     countColumn('Battles', (r) => r.battles),
                     winRateColumn(),
+                    {
+                      header: 'Filter by team',
+                      align: 'center',
+                      // Radios rather than checkboxes: one team at a time is
+                      // the rule, and a radio group is the control that says
+                      // so without having to be told. Clearing is the button
+                      // in the banner above, since a radio can't unset itself.
+                      cell: (row) => (
+                        <Form.Check
+                          type="radio"
+                          name="team-filter"
+                          className="d-inline-block"
+                          id={`team-filter-${row.key}`}
+                          checked={row.key === selectedTeam?.key}
+                          onChange={() => setTeamKey(row.key)}
+                          aria-label={`Show only games with ${row.members
+                            .map(displaySpecies)
+                            .join(', ')}`}
+                          title="Show the whole page for just this team"
+                        />
+                      ),
+                    },
                   ]}
                   empty={
-                    stats.battlesWithoutTeamPreview > 0
+                    fullStats.battlesWithoutTeamPreview > 0
                       ? "This format has no team preview, so the replays don't say which six were brought."
                       : 'No teams to show yet.'
                   }
@@ -483,7 +578,7 @@ function Player() {
                 way back to the individual games belongs at the bottom. */}
             <Row className="g-3 mt-0">
               <Col xs={12}>
-                <ReplayShowcase battles={data.battles} />
+                <ReplayShowcase battles={battles} />
               </Col>
             </Row>
           </>

@@ -67,6 +67,9 @@ function RankedTable({
   nameHeader = 'Name',
   renderName = (row) => row.key,
   onRowClick,
+  // Lets a caller mark a row as the one the rest of the page is scoped to, so
+  // the selection is visible without hunting for a checked control.
+  rowClass,
   sortable = false,
   // Some rows aren't a name but a composition — six Pokémon that need room to
   // wrap. Truncating those to one line would hide most of the row's content.
@@ -178,6 +181,7 @@ function RankedTable({
               {shown.map((row, index) => (
                 <tr
                   key={row.key}
+                  className={rowClass?.(row) ?? undefined}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >

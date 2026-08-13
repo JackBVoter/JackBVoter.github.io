@@ -44,7 +44,7 @@ All of the player's dashboards (widgets below).
 |---|---|
 | See Data From How Many Games? | User-controlled sample size — how many replays to analyze |
 | ~~Formats~~ | **Removed 2026-08-09.** Every dashboard is now scoped to exactly one format (chosen in the filter, carried in the URL), so this table was a single row restating the filter. The format *picker* remains; the breakdown widget does not |
-| Most Used Team | The player's most-brought **whole teams** — one row per distinct set brought together, not per Pokémon (changed 2026-08-09) |
+| Most Used Team | The player's most-brought **whole teams** — one row per distinct set brought together, not per Pokémon (changed 2026-08-09). Also the page's **team filter** (added 2026-08-12) |
 | Most Common Wins | **Opposing** Pokémon appearing most often in the player's **wins** |
 | Most Common Loses | **Opposing** Pokémon appearing most often in the player's **losses** |
 | Players who beat you more than once | Opponents with 2+ wins against this player |
@@ -55,6 +55,31 @@ All of the player's dashboards (widgets below).
 `Most Common Wins`/`Loses` = **opposing Pokémon** — "what you beat" and "what
 beats you" (decided 2026-07-26; the other readings considered were the player's
 own Pokémon by win rate, and head-to-head records vs other players).
+
+### Team filter (added 2026-08-12)
+Each row of `Most Used Team` carries a **"Filter by team"** radio. Selecting one
+re-scopes **every widget on the page** — tiles, rating chart, matchups, rivals,
+game length, Tera, replay showcase — to only the games where that team was
+brought. **One team at a time**, hence radios rather than checkboxes.
+
+Rules this has to follow:
+- **No re-fetch.** The replays are already downloaded and parsed, so the filter
+  is `battles.filter(b => teamKeyOf(b) === key)` followed by a re-`aggregate()`.
+  Instant, and no extra load on Showdown.
+- **One definition of team identity.** `teamKeyOf(battle)` in `src/lib/aggregate.js`
+  is exported and used by both `teamsUsed()` and the page filter. Two copies
+  would let a row read "12 battles" and filter down to 11.
+- **The widget keeps listing every team**, because it is the filter's own
+  control — narrowing it to the selected row would remove the way back out. It
+  reads `data.stats` (unfiltered) while everything else reads the filtered
+  aggregate.
+- **Say the scope out loud.** A banner above the dashboards names the team and
+  offers "Show all teams"; a checked radio further down the page is not enough
+  to explain why every number changed.
+- **Cleared on a format change** (the six can't be legal in another format), but
+  *not* on a game-count or unrated-toggle change — there the user is adjusting
+  the sample for the team they're already reading.
+- Battles without team preview belong to no team, so no filter can claim them.
 
 ### Design note answered
 The Figma file asks:

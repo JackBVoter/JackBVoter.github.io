@@ -131,30 +131,48 @@ function winRateByLength(battles, style) {
 }
 
 /**
- * Whole teams the player brought, most-used first — one row per distinct set of
- * six, not per Pokémon.
+ * Which team the player brought in one battle, as a stable identity string, or
+ * null when the replay can't say.
  *
- * Only battles with team preview can be counted. Without it (Random Battle, and
- * any other format with no `|poke|` lines) `me.team` is just whoever got sent
- * out, so the same team reads as a different set every battle and the tally
- * degenerates into a list of one-offs. Better to count nothing than to invent
- * teams that were never brought.
+ * Only battles with team preview can answer. Without it (Random Battle, and any
+ * other format with no `|poke|` lines) `me.team` is just whoever got sent out,
+ * so the same team reads as a different set every battle. Better to say nothing
+ * than to invent a team that was never brought.
  *
  * Members are sorted so that bring order can't split one team across two rows,
- * and that sorted list doubles as the identity key.
+ * and that sorted list doubles as the key.
+ *
+ * Exported because the player page filters battles by team, and that filter has
+ * to use exactly the same identity rule as the tally below. Two definitions
+ * would mean a row reading "12 battles" that filters down to 11.
+ */
+export function teamKeyOf(battle) {
+  if (!battle.me.teamPreviewed || battle.me.team.length === 0) return null
+  return [...new Set(battle.me.team)].sort().join('|')
+}
+
+/**
+ * Whole teams the player brought, most-used first — one row per distinct set of
+ * six, not per Pokémon.
  */
 function teamsUsed(battles) {
   const map = new Map()
 
   for (const battle of battles) {
-    if (!battle.me.teamPreviewed || battle.me.team.length === 0) continue
-
-    const members = [...new Set(battle.me.team)].sort()
-    const key = members.join('|')
+    const key = teamKeyOf(battle)
+    if (!key) continue
 
     let row = map.get(key)
     if (!row) {
-      row = { key, members, battles: 0, wins: 0, losses: 0, ties: 0, lastUsed: null }
+      row = {
+        key,
+        members: key.split('|'),
+        battles: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        lastUsed: null,
+      }
       map.set(key, row)
     }
     row.battles += 1

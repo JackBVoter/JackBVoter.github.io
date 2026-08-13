@@ -1,6 +1,6 @@
 AI ASSISTANCE RECORD
 Project: Trackinch Stats (a Pokémon Showdown statistics site)
-Sessions: 2026-07-12, 2026-07-14, 2026-07-26, 2026-08-09/10
+Sessions: 2026-07-12, 2026-07-14, 2026-07-26, 2026-08-09/10, 2026-08-12
 Tool: Claude (Claude Code)
 
 RESEARCH & SPECIFICATION
@@ -32,6 +32,10 @@ CODE WRITTEN
 - Ladder Rank Over Time is hand-rolled SVG rather than a charting library:
   Recharts would have roughly doubled a 100 kB bundle for one chart. Cost 1.8 kB.
 - Trapinch theme in a single removable CSS file, plus Pokémon type icons.
+- Team filter (2026-08-12): a radio on each "Most Used Team" row re-scopes the
+  whole page to that team's games. Implemented as a re-count of replays already
+  downloaded, so it costs no network and returns instantly; the team-identity
+  rule is exported from one place so the filter and the tally can never disagree.
 
 BUGS FOUND AND FIXED
 Earlier sessions:
@@ -95,6 +99,12 @@ statistics, and the per-format sample-size limitation.
 - He supplied the mascot art and the type icons.
 - He corrected the assistant's working practice of starting background dev
   servers unasked.
+
+2026-08-12:
+- He specified the team filter: an option on each team in "Most Used Team" that
+  reloads the page's data for only the games that team played, one team at a
+  time. The single-selection rule was his, and it is what made radios the right
+  control.
 
 STILL UNBUILT
 Nothing from the widget spec - every dashboard in docs/dashboards.md is built.
