@@ -59,6 +59,34 @@ export function searchReplayPage(userId, page = 1, opts = {}) {
 }
 
 /**
+ * Page 1 of a user's replays in exactly one format, plus whether that page was
+ * the whole story.
+ *
+ * `complete: true` means the raw page came back short, so it is the player's
+ * entire public history in this format and `replays.length` is an exact count.
+ * A full page means there is more behind it, and the length is only a floor —
+ * callers should render "51+" rather than "51".
+ *
+ * The exact-format filter is the point of this function existing. Showdown
+ * matches `format` as a suffix, so `gen9ou` also returns `smogtours-gen9ou`;
+ * counting the raw page would inflate the number and make it disagree with the
+ * player page, which filters (see fetchAllReplayMeta). One place to get this
+ * right, used by everything that needs "how many replays does this player have
+ * in this format?".
+ */
+export async function fetchReplayPageInFormat(userId, formatId, opts = {}) {
+  const batch = await searchReplayPage(userId, 1, { ...opts, format: formatId })
+  const rows = Array.isArray(batch) ? batch : []
+  const replays = rows.filter(
+    (entry) =>
+      entry?.id && (!formatId || formatIdFromReplayId(entry.id) === formatId),
+  )
+  // Checked against the raw page, not the filtered list: a page of 51 that
+  // filters down to 3 still has more pages behind it.
+  return { replays, complete: rows.length < REPLAYS_PER_PAGE }
+}
+
+/**
  * Walk search.json pages until the user's history runs out or we hit `limit`.
  * onPage({ fetched, page }) fires after each page so the UI can show progress
  * while we are still discovering how much work there is to do.

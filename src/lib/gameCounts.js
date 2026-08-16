@@ -9,9 +9,22 @@ export const GAME_COUNT_OPTIONS = [25, 50, 100, 200]
 
 export const DEFAULT_GAME_COUNT = 50
 
-// There is deliberately nothing here for "which options can this player fill?".
-// Every option is always selectable: a count is a ceiling, and asking for more
-// than exists analyzes everything that does. largestUsableCount() and
-// unavailableCounts() lived here to grey options out and step the selection
-// down, which pinned a player with 58 replays to 50 and hid the other 8.
-// GameCountPicker states the shortfall instead.
+/**
+ * Is this one of the offered counts?
+ *
+ * Needed because the selection is remembered across visits (localStorage), so
+ * the value reaching the fetch layer can be older than this list — or edited by
+ * hand. A count that isn't on the list would leave every button unselected
+ * while still driving the request.
+ */
+export function isGameCount(value) {
+  return GAME_COUNT_OPTIONS.includes(value)
+}
+
+// isGameCount is about the *list*, not about the player. There is deliberately
+// nothing here for "which options can this player fill?" — every option is
+// always selectable: a count is a ceiling, and asking for more than exists
+// analyzes everything that does. largestUsableCount() and unavailableCounts()
+// lived here to grey options out and step the selection down, which pinned a
+// player with 58 replays to 50 and hid the other 8. GameCountPicker states the
+// shortfall instead.

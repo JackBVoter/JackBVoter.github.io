@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { searchReplayPage } from '../api/showdown.js'
-import { mapWithConcurrency, successes } from '../lib/pool.js'
+import { mapWithConcurrency } from '../lib/pool.js'
 import { createCache } from '../lib/cache.js'
+import { getReplayPage } from '../lib/replayPageCache.js'
 
 // How many ranked players to ask. This cannot be small: of the top 20 Gen 9 OU
 // players, only 12 had public replays, and VGC managed just 9. (Filtering the
@@ -15,24 +15,36 @@ export const MAX_PER_PLAYER = 3
 
 export const DEFAULT_LIMIT = 20
 
-// 20 requests per format view is the most expensive thing on the start page,
-// so it is the most worth caching.
+// Caches the merge and ranking. The requests underneath are cached separately
+// and per player (replayPageCache), which is what lets the ladder's Replays
+// column reuse them instead of asking Showdown the same thing again.
 const replayCache = createCache()
 
 /** Gather, dedupe and rank replays for one format. Cached as a single unit. */
 async function gatherReplays(players, formatId, limit) {
   const results = await mapWithConcurrency(
     players,
-    (player) => searchReplayPage(player.userid, 1, { format: formatId }),
+    (player) => getReplayPage(player.userid, formatId),
     { concurrency: 6 },
   )
 
   // A player with no public replays yields an empty list, not an error — that
   // is expected and common near the top of the ladder.
+  //
+  // Walk `results` directly rather than successes(results): that helper drops the
+  // failures, which collapses the indices, and the index here IS the player's
+  // rank. One failed request and every replay after it in the list would be
+  // attributed to the wrong player and labelled with the wrong rank.
   const merged = []
-  successes(results).forEach((list, index) => {
+  results.forEach((result, index) => {
+    if (!result?.ok) return
+    // Exactly-this-format entries only. This used to be the raw page, which let
+    // smogtours-gen9ou replays into a list captioned "Gen 9 OU" — Showdown
+    // matches the format parameter as a suffix. getReplayPage filters.
+    const list = result.value?.replays
     if (!Array.isArray(list)) return
     const player = players[index]
+    if (!player) return
     for (const replay of list.slice(0, MAX_PER_PLAYER)) {
       merged.push({
         ...replay,

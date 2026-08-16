@@ -9,10 +9,11 @@ import RankedTable, { pct, winRateColumn } from '../components/RankedTable.jsx'
 import RatingChart from '../components/RatingChart.jsx'
 import ReplayShowcase from '../components/ReplayShowcase.jsx'
 import SearchBar from '../components/SearchBar.jsx'
-import { DEFAULT_GAME_COUNT } from '../lib/gameCounts.js'
+import { DEFAULT_GAME_COUNT, isGameCount } from '../lib/gameCounts.js'
 import StatTile from '../components/StatTile.jsx'
 import TypeLabel from '../components/TypeLabel.jsx'
 import { usePlayerAnalysis } from '../hooks/usePlayerAnalysis.js'
+import { useStoredState } from '../hooks/useStoredState.js'
 import { toUserId } from '../api/showdown.js'
 import { findFormat } from '../data/formats.js'
 import { aggregate, teamKeyOf } from '../lib/aggregate.js'
@@ -60,10 +61,22 @@ function Player() {
   // from a ladder click lands on that ladder's format.
   const format = searchParams.get('format') || null
 
-  const [gameCount, setGameCount] = useState(DEFAULT_GAME_COUNT)
+  // Both sample controls are remembered across visits. They describe how the
+  // reader wants to read, not anything about one player, so re-setting them on
+  // every dashboard was pure repetition. The defaults still apply on a first
+  // visit, and the stored value is validated on the way back in.
+  const [gameCount, setGameCount] = useStoredState(
+    'gameCount',
+    DEFAULT_GAME_COUNT,
+    isGameCount,
+  )
   // Default on, so the page opens showing everything a player uploaded and the
   // toggle is an opt-in narrowing rather than a hidden filter.
-  const [includeUnrated, setIncludeUnrated] = useState(true)
+  const [includeUnrated, setIncludeUnrated] = useStoredState(
+    'includeUnrated',
+    true,
+    (value) => typeof value === 'boolean',
+  )
   const { progress, data, error } = usePlayerAnalysis(userId, {
     limit: gameCount,
     format,
@@ -204,7 +217,20 @@ function Player() {
             {' · '}
           </>
         ) : null}
-        <Link to="/">← back to formats</Link>
+        {/* Carry the format back, so returning lands on the ladder you came
+            from rather than resetting to the default. Only when it's one of the
+            six the start page offers — the format here can be one the hook
+            resolved from the player's own history, and pointing the start page
+            at something it can't show would be worse than not asking. */}
+        <Link
+          to={
+            findFormat(activeFormat)
+              ? `/?format=${encodeURIComponent(activeFormat)}`
+              : '/'
+          }
+        >
+          ← back to formats
+        </Link>
       </p>
 
       <Row className="g-3 mb-4 align-items-end">
@@ -252,6 +278,7 @@ function Player() {
             onChange={setGameCount}
             available={available}
             disabled={busy}
+            instanceId="top"
           />
         </Col>
       </Row>
@@ -427,6 +454,24 @@ function Player() {
                 is in the format named above it, so the table was one row
                 restating the filter. */}
             <Row className="g-3">
+              {/* The sample size again, where the reason to change it actually
+                  occurs to you. Scoping to one team cuts the sample to that
+                  team's games, and the obvious next thought is "give me more of
+                  them" — which the control at the top of the page can't answer
+                  without scrolling back past every widget. Same state as the
+                  copy up there, so the two always read the same. */}
+              <Col xs={12}>
+                <GameCountPicker
+                  value={gameCount}
+                  onChange={setGameCount}
+                  available={available}
+                  disabled={busy}
+                  instanceId="teams"
+                  // Already stated once on this screen, a short scroll up.
+                  showCaveat={false}
+                />
+              </Col>
+
               {/* Full width: a row here is six Pokémon, not one name. */}
               <Col xs={12}>
                 <RankedTable
@@ -516,9 +561,9 @@ function Player() {
 
               <Col lg={6}>
                 <RankedTable
-                  title="Most Common Loses"
+                  title="Most Common Losses"
                   subtitle="Opposing Pokémon that beat you most often — click a column to rank by it"
-                  rows={stats.commonLoses}
+                  rows={stats.commonLosses}
                   nameHeader="Pokémon"
                   renderName={(row) => displaySpecies(row.key)}
                   sortable

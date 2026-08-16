@@ -1,6 +1,7 @@
 AI ASSISTANCE RECORD
 Project: Trackinch Stats (a Pokémon Showdown statistics site)
-Sessions: 2026-07-12, 2026-07-14, 2026-07-26, 2026-08-09/10, 2026-08-12
+Sessions: 2026-07-12, 2026-07-14, 2026-07-26, 2026-08-09/10, 2026-08-12,
+          2026-08-15
 Tool: Claude (Claude Code)
 
 RESEARCH & SPECIFICATION
@@ -27,7 +28,7 @@ CODE WRITTEN
   out to Showdown, player search with real "user not found" validation.
 - Player page: format scoping, game-count control, progress UI, four headline
   tiles, and the widgets — Most Used Team (whole teams), Most Common Wins,
-  Most Common Loses, repeat rivals, Most Used Tera, Win Rate by Game Length,
+  Most Common Losses, repeat rivals, Most Used Tera, Win Rate by Game Length,
   Ladder Rank Over Time, and the Replay Showcase.
 - Ladder Rank Over Time is hand-rolled SVG rather than a charting library:
   Recharts would have roughly doubled a 100 kB bundle for one chart. Cost 1.8 kB.
@@ -36,6 +37,18 @@ CODE WRITTEN
   whole page to that team's games. Implemented as a re-count of replays already
   downloaded, so it costs no network and returns instantly; the team-identity
   rule is exported from one place so the filter and the tally can never disagree.
+- Ladder replay counts (2026-08-15): each Top 100 row shows how many public
+  replays that player has in the selected format, so a dead end can be skipped
+  without opening it. There is no bulk endpoint - it is one request per player -
+  so counts load only for rows scrolled into view, and they share the requests
+  the Recent Replays list was already making and discarding. Fetching all 100 up
+  front was rejected: it would have taken the start page from 21 requests per
+  format view to 101, on an API we don't own.
+- Remembered sample controls (2026-08-15): the game count and the unrated toggle
+  persist across dashboards in localStorage, validated on the way back in so a
+  stale stored count can't drive a fetch no button is showing. The game-count
+  picker also appears a second time directly above Most Used Team, both copies
+  driving the same state.
 
 BUGS FOUND AND FIXED
 Earlier sessions:
@@ -62,6 +75,37 @@ Earlier sessions:
 - Bootstrap's default muted grey measured 4.40:1 on the new themed background - a
   contrast failure, on text used throughout the app. Caught by computing the
   ratios rather than eyeballing them.
+
+2026-08-15:
+- "Most Common Loses" should have read "Losses" - the verb where the noun
+  belongs. Jack caught it. Renamed through the aggregation key too, so the code
+  and the label agree.
+- Rendering the game-count picker a second time would have duplicated its input
+  ids and put both copies in one radio group, which makes a label activate the
+  wrong control. Each copy now takes an instanceId. Found by reasoning about the
+  HTML before shipping it, not from a broken page.
+Introduced and fixed the same session:
+- The start page forgot its selected format whenever you opened a player and came
+  back, always resetting to Gen 9 OU. It was component state, and that page
+  unmounts on navigation. Now kept in the URL (so the back link, the browser's
+  back button and shared links all work) and mirrored to localStorage (for
+  arrivals with no format in the URL). Jack found it by using the app.
+- The replay-count column was blank on first load and only populated after
+  switching format. Its scheduler's stop() was a one-way latch, and React's
+  StrictMode mounts effects twice in development - the single cleanup permanently
+  disarmed the only loader the first format would ever get. Jack found it by
+  running the app; reading the code had not. stop() is now paired with start(),
+  and scripts/check-count-loader.mjs tests that exact mount/cleanup/mount
+  sequence along with the concurrency cap and queue priority (11 checks).
+
+Two found while adding the ladder's replay-count column, both pre-existing:
+- The Recent Replays list never applied the exact-format filter, so a list
+  captioned "Gen 9 OU" could contain smogtours-gen9ou replays - the 2026-08-09
+  suffix bug, still live in a second code path. Confirmed against live data the
+  same day: one of the top 25 OU players had exactly such an entry on page 1.
+- That list attributed replays to players by index into a list with the failures
+  already filtered out, which collapses the indices. A single failed request
+  would have labelled every replay after it with the wrong player and rank.
 Two wrong assumptions in the project's own verification script:
 - It assumed six is the maximum team size; gen9randombattlesharedpowerb12p6
   brings twelve.
@@ -72,8 +116,9 @@ METHOD
 Behaviour was verified against live Showdown data rather than assumed - each
 change was checked by fetching real replays and inspecting the parsed output, and
 several of the bugs above were found that way. Colour choices were validated with
-WCAG contrast calculations. Two scripts guard regressions:
-scripts/validate-parser.mjs and .claude/hooks/guard-paths.test.mjs.
+WCAG contrast calculations. Four scripts guard regressions:
+scripts/validate-parser.mjs, scripts/check-ladder-counts.mjs,
+scripts/check-count-loader.mjs and .claude/hooks/guard-paths.test.mjs.
 
 HUMAN DIRECTION
 Jack Byers set the requirements, supplied the Figma design, defined every widget,
@@ -105,6 +150,20 @@ statistics, and the per-format sample-size limitation.
   reloads the page's data for only the games that team played, one team at a
   time. The single-selection rule was his, and it is what made radios the right
   control.
+
+2026-08-15:
+- He caught the misspelled widget: "Most Common Loses" is the verb, not the noun.
+- He decided the sample controls should persist between dashboards rather than
+  resetting on every player.
+- He asked for a second copy of the game-count picker above "Most Used Team", and
+  gave the reason: after filtering to one team you often want a bigger sample,
+  and that is where the thought occurs.
+- He specified the ladder replay-count column, and the reason for it: users
+  shouldn't waste clicks on ranked players with almost no replays. Presented with
+  the cost (one request per player, no bulk endpoint) he chose to load counts only
+  for rows scrolled into view rather than all 100 up front.
+- He reported both of that feature's follow-up defects from running the app: the
+  counts blank until a format switch, and the start page forgetting its format.
 
 STILL UNBUILT
 Nothing from the widget spec - every dashboard in docs/dashboards.md is built.

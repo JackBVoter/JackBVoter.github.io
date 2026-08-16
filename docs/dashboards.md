@@ -28,7 +28,8 @@ START PAGE
 ### Format view (two dashboards)
 1. **Top 100 players** on that format's ladder — scrollable. Clicking a name
    loads that player's page, exactly as if their name had been typed into the
-   search box.
+   search box. Each row also shows that player's **replay count** in this format
+   (added 2026-08-15; see "Ladder Replays column" below).
 2. **Recent replays from top 100 players** — a handful. Clicking one opens the
    replay on Pokémon Showdown **in a new browser tab**.
 
@@ -42,17 +43,17 @@ All of the player's dashboards (widgets below).
 ### Player page
 | Widget | Meaning |
 |---|---|
-| See Data From How Many Games? | User-controlled sample size — how many replays to analyze |
+| See Data From How Many Games? | User-controlled sample size — how many replays to analyze. Rendered **twice** (top of page, and above `Most Used Team`); see "Sample controls" below |
 | ~~Formats~~ | **Removed 2026-08-09.** Every dashboard is now scoped to exactly one format (chosen in the filter, carried in the URL), so this table was a single row restating the filter. The format *picker* remains; the breakdown widget does not |
 | Most Used Team | The player's most-brought **whole teams** — one row per distinct set brought together, not per Pokémon (changed 2026-08-09). Also the page's **team filter** (added 2026-08-12) |
 | Most Common Wins | **Opposing** Pokémon appearing most often in the player's **wins** |
-| Most Common Loses | **Opposing** Pokémon appearing most often in the player's **losses** |
+| Most Common Losses | **Opposing** Pokémon appearing most often in the player's **losses**. (Titled "Most Common Loses" until 2026-08-15 — "loses" is the verb, the noun is "losses". `stats.commonLosses`.) |
 | Players who beat you more than once | Opponents with 2+ wins against this player |
 | Ladder Rank Over Time | Elo across the analyzed replays, chronological (line chart) |
 | Most Used Tera | Most-chosen Tera types |
 | Replay Showcase | Links out to individual replays (new tab) |
 
-`Most Common Wins`/`Loses` = **opposing Pokémon** — "what you beat" and "what
+`Most Common Wins`/`Losses` = **opposing Pokémon** — "what you beat" and "what
 beats you" (decided 2026-07-26; the other readings considered were the player's
 own Pokémon by win rate, and head-to-head records vs other players).
 
@@ -88,6 +89,101 @@ Rules this has to follow:
   *not* on a game-count or unrated-toggle change — there the user is adjusting
   the sample for the team they're already reading.
 - Battles without team preview belong to no team, so no filter can claim them.
+
+### Ladder "Replays" column (added 2026-08-15)
+Each row of the start page's Top 100 shows **how many public replays that player
+has in the selected format**, so a dead-end player can be skipped without opening
+their dashboard. Being ranked says nothing about uploading: sampled live
+2026-08-15, **8 of the top 25 Gen 9 OU players** had 0–5 replays, and **8 of the
+top 15 VGC players had none at all**. `scripts/check-ladder-counts.mjs <format>
+<n>` re-checks this.
+
+- **One request per player, and there is no bulk endpoint.** So counts load for
+  **rows scrolled into view only** — an `IntersectionObserver` rooted on the
+  table's own scroll box (not the window), `rootMargin` 150px for lead time.
+  Glancing at a format costs about what it used to; scrolling the whole ladder
+  costs 100. Fetching all 100 up front was considered and rejected: it would have
+  taken the start page from 21 requests per format view to 101, on an API we
+  don't own.
+- **Counts come from page 1 only.** 0–50 is exact; a full page renders **"51+"**,
+  never "51". A floor must not be displayed as a total.
+- **Exact-format filtering is mandatory** — `fetchReplayPageInFormat()` in
+  `src/api/showdown.js`. The suffix bug is live and observable: on 2026-08-15
+  `ONGG`'s raw page held 8 entries, one of them `smogtours-gen9ou`, so an
+  unfiltered count would say 8 where the player page analyzes 7.
+- **The request is shared with Recent Replays** (`src/lib/replayPageCache.js`,
+  keyed `format|userid`). That feature already fetched this exact page for the
+  top 20 and discarded the count, so those rows are free. It also means a row
+  re-entering the viewport, or a format revisited within the 5-minute TTL, never
+  re-asks.
+- **Queued rows you've scrolled past are deprioritized**, not cancelled: a fast
+  scroll queues everything it flew over, and the reader wants the rows they
+  stopped at. Concurrency is **4**, below the 6 used elsewhere, because Recent
+  Replays is fetching on the same screen at the same time.
+- **A failed count is a `?` on that row**, not an error state on the ladder.
+- Rows with no replays stay **clickable** — the player page has a proper "no
+  public replays in this format" message, and blocking the click would just
+  hide it.
+- **The scheduler's `stop()` must stay paired with `start()`, never a one-way
+  latch.** `StrictMode` mounts effects twice in development, so a cleanup that
+  permanently disarms the loader leaves the column blank on load and working
+  only after a format switch (which builds a fresh loader). Guarded by
+  `scripts/check-count-loader.mjs`.
+
+### Remembering the start page's format (added 2026-08-15)
+The start page's selected format survives leaving and coming back. It was plain
+component state, and `Home` unmounts the moment you open a player, so every
+return landed on Gen 9 OU regardless of what you'd been browsing.
+
+Two mechanisms, because there are several ways back:
+- **The URL** (`/?format=gen9ou`) — for the player page's "← back to formats"
+  link, the browser's back button, and shared links. The link only adds the
+  param for one of the six supported formats: the player page's active format can
+  be one resolved from that player's own history, and pointing the start page at
+  a format it can't show would be worse than not asking.
+- **`localStorage`** — for arrivals with no format in the URL at all: the navbar
+  brand, a bookmark, a new session.
+
+The URL wins when it names a supported format; anything unrecognised falls back
+rather than rendering a page with no dashboards. The stored value is a **mirror
+of the URL**, written by an effect rather than by the click handler, so "the last
+format" means the last one actually shown however you reached it. Format buttons
+use `replace`, so clicking through all six doesn't cost six presses of Back to
+leave the page.
+
+The **search box still doesn't carry a format** — a typed name is a fresh,
+unscoped lookup, and scoping a new player to the last one's format would be a
+guess about someone who may never have played it.
+
+### Sample controls (added 2026-08-15)
+The two controls that decide *which games* the page counts — the game count and
+the unrated-games toggle — are **remembered across dashboards** (`localStorage`,
+via `useStoredState`). They describe how the reader wants to read, not anything
+about one player, so looking at three players in a row shouldn't mean setting
+the count to 200 three times.
+
+- **Not** stored this way: the **player page's format** (it lives in the URL so a
+  dashboard is shareable and a ladder click carries its own format in) and the
+  **team filter** (it names one player's Pokémon and would be stale on the next
+  player).
+- A stored value is **validated on read** — `isGameCount()` in
+  `src/lib/gameCounts.js`. A count written when the options list was different
+  would otherwise leave every button unselected while still driving the fetch.
+- Storage access is wrapped in `try`/`catch`: `localStorage` throws outright in
+  some private-browsing modes, and a remembered preference must never be able to
+  take the page down.
+
+`GameCountPicker` appears **twice**, both driving the same state so they cannot
+disagree: once at the top with the other scope controls, once directly above
+`Most Used Team`. The second one is there because scoping to a team cuts the
+sample to that team's games, and the next thought is "give me more of them" —
+which the top control can't answer without scrolling back past every widget.
+- Each copy takes an `instanceId`. Two radio groups with the same `name` are one
+  group, and duplicate input ids would point the second copy's labels at the
+  first copy's inputs.
+- The permanent public-replays caveat is on the top copy only (`showCaveat`),
+  since both are on the same screen. `showCaveat` is not a way to remove that
+  note from the page — it must always be visible somewhere.
 
 ### Design note answered
 The Figma file asks:

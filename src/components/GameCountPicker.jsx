@@ -26,10 +26,28 @@ import { GAME_COUNT_OPTIONS } from '../lib/gameCounts.js'
  * moment the data arrived — that is, it vanished exactly when the statistics
  * it qualifies appeared.
  *
+ * The page renders this control twice — once with the other scope controls at
+ * the top, once just above "Most Used Team", where the reason to widen the
+ * sample usually occurs to you. Both drive the same state, so they can never
+ * disagree, but they must not share HTML: `instanceId` keeps their input ids
+ * unique and their radio groups separate. Two radios with the same `name` are
+ * one group, and duplicate ids would point the second copy's labels at the
+ * first copy's inputs.
+ *
  * @param {number|null} available - replays in the selected format, or null
  *   while loading
+ * @param {string} instanceId - distinguishes this copy's ids and radio group
+ * @param {boolean} showCaveat - the permanent public-replays note. Off for the
+ *   second copy only because the first already carries it on the same screen.
  */
-function GameCountPicker({ value, onChange, available = null, disabled = false }) {
+function GameCountPicker({
+  value,
+  onChange,
+  available = null,
+  disabled = false,
+  instanceId = 'top',
+  showCaveat = true,
+}) {
   const known = typeof available === 'number'
   // The selection asks for more than exists. Not an error — just a ceiling the
   // player should know about, since it caps every statistic on the page.
@@ -47,9 +65,9 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
           return (
             <ToggleButton
               key={count}
-              id={`game-count-${count}`}
+              id={`game-count-${instanceId}-${count}`}
               type="radio"
-              name="game-count"
+              name={`game-count-${instanceId}`}
               variant={count === value ? 'primary' : 'outline-primary'}
               value={count}
               checked={count === value}
@@ -83,11 +101,17 @@ function GameCountPicker({ value, onChange, available = null, disabled = false }
           numbers are up they look authoritative, and this is the moment the
           reader most needs to know what they don't cover: a player's public
           replays are the ones they chose to upload, which can be a small and
-          unrepresentative slice of what they actually played. */}
-      <div className="text-muted small mt-1">
-        Only publicly uploaded replays can be analyzed — a player may have
-        played many more games than this. We analyze what&apos;s available.
-      </div>
+          unrepresentative slice of what they actually played.
+
+          `showCaveat` is not a way to turn that off — the note must always be
+          on screen. It exists so the second copy of this control doesn't repeat
+          it a few hundred pixels below the first. */}
+      {showCaveat ? (
+        <div className="text-muted small mt-1">
+          Only publicly uploaded replays can be analyzed — a player may have
+          played many more games than this. We analyze what&apos;s available.
+        </div>
+      ) : null}
     </div>
   )
 }

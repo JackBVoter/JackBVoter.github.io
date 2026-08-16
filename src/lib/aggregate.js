@@ -3,7 +3,7 @@
 // to reason about and to test.
 //
 // Widget definitions come from docs/dashboards.md. In particular
-// "Most Common Wins/Loses" are about the OPPONENT's Pokémon: what you beat, and
+// "Most Common Wins/Losses" are about the OPPONENT's Pokémon: what you beat, and
 // what beats you.
 
 function rate(wins, decided) {
@@ -258,7 +258,7 @@ export function aggregate(battles) {
   const commonWins = [...opposing]
     .filter((row) => row.wins > 0)
     .sort((a, b) => b.wins - a.wins || b.winRate - a.winRate || a.key.localeCompare(b.key))
-  const commonLoses = [...opposing]
+  const commonLosses = [...opposing]
     .filter((row) => row.losses > 0)
     .sort((a, b) => b.losses - a.losses || a.winRate - b.winRate || a.key.localeCompare(b.key))
 
@@ -329,7 +329,7 @@ export function aggregate(battles) {
     battlesWithoutTurns,
     opposing: [...opposing].sort(byUsage),
     commonWins,
-    commonLoses,
+    commonLosses,
     rivals,
     teraTypes,
     ratingTimeline,

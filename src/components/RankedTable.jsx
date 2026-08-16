@@ -21,7 +21,7 @@ export function rateClass(row) {
  * A win-rate cell with small-sample handling, shared by most widgets.
  *
  * `sortDir` has no default worth guessing: on "Most Common Wins" the
- * interesting end is your best matchups, on "Most Common Loses" it's your
+ * interesting end is your best matchups, on "Most Common Losses" it's your
  * worst. Each caller states which way its table means.
  */
 export function winRateColumn(header = 'Win rate', { sortDir = 'desc' } = {}) {
@@ -47,7 +47,7 @@ export function winRateColumn(header = 'Win rate', { sortDir = 'desc' } = {}) {
  * When `sortable`, the reader chooses which column ranks the table, but NOT
  * which direction it runs. Direction is a property of the measure, not a
  * preference: "Lost to" is only ever interesting highest-first, and win rate on
- * a loses table is only ever interesting lowest-first. Letting it flip produced
+ * a losses table is only ever interesting lowest-first. Letting it flip produced
  * the reading that broke this widget — a 90% win rate sitting at the top of a
  * table about losing, which looks like a bug rather than a definition. So each
  * column declares its one correct `sortDir` and clicking only ever picks the
