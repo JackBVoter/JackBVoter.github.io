@@ -24,7 +24,7 @@ CODE WRITTEN
 - API layer, concurrency-limited fetching, TTL caching.
 - Battle-log parser, validated against live replays across many formats.
 - Statistics aggregation.
-- Start page: six format buttons, top-100 ladder, recent top-100 replays linking
+- Start page: seven format buttons, top-100 ladder, recent top-100 replays linking
   out to Showdown, player search with real "user not found" validation.
 - Player page: format scoping, game-count control, progress UI, four headline
   tiles, and the widgets — Most Used Team (whole teams), Most Common Wins,
@@ -49,6 +49,16 @@ CODE WRITTEN
   stale stored count can't drive a fetch no button is showing. The game-count
   picker also appears a second time directly above Most Used Team, both copies
   driving the same state.
+- VGC 2026 Reg M-C (2026-10-21) added to the fixed format list. Its formatid was
+  read out of the live replay feed rather than guessed, per the project's rule;
+  no other code needed changing, because doubles, team preview and Tera are all
+  read from each battle's log rather than inferred from the format's name.
+- "Trending now" row (2026-10-21): the start page samples the newest ~200 public
+  replays across all of Showdown and offers up to five formats being played a
+  lot right now that aren't in the fixed list. Each is shown only after its
+  ladder is confirmed non-empty, and that check warms the cache, so clicking one
+  costs nothing extra. scripts/check-trending.mjs tests the ranking rules offline
+  and the whole pipeline live.
 
 BUGS FOUND AND FIXED
 Earlier sessions:
@@ -106,6 +116,12 @@ Two found while adding the ladder's replay-count column, both pre-existing:
 - That list attributed replays to players by index into a list with the failures
   already filtered out, which collapses the indices. A single failed request
   would have labelled every replay after it with the wrong player and rank.
+2026-10-21, caught before shipping while building the trending row:
+- The site-wide replay feed ignores ?page= - page 2 is page 1 again, so a naive
+  sample counts the same 51 replays six times. Paging uses before=<uploadtime>.
+- "Unrated Random Battle" passed the empty-ladder check: it has a 43-entry
+  "ladder" of stale results. Formats are now required to have at least one rated
+  game in the sample, which every real ladder format had.
 Two wrong assumptions in the project's own verification script:
 - It assumed six is the maximum team size; gen9randombattlesharedpowerb12p6
   brings twelve.
@@ -164,6 +180,11 @@ statistics, and the per-format sample-size limitation.
   for rows scrolled into view rather than all 100 up front.
 - He reported both of that feature's follow-up defects from running the app: the
   counts blank until a format switch, and the start page forgetting its format.
+
+2026-10-21:
+- He asked for Reg M-C support, and asked whether the site could detect new
+  popular formats itself. Shown that it could, he chose to keep the fixed list
+  and add detected formats alongside it rather than replace it.
 
 STILL UNBUILT
 Nothing from the widget spec - every dashboard in docs/dashboards.md is built.

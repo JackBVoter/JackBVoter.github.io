@@ -6,7 +6,8 @@
 // user.
 //
 // Every id below was verified against
-// https://pokemonshowdown.com/ladder/<id>.json on 2026-07-26.
+// https://pokemonshowdown.com/ladder/<id>.json on 2026-07-26 (Reg M-C on
+// 2026-10-21, read out of the live replay feed).
 // Do NOT add a format without checking it the same way: a wrong id does not
 // 404, it returns 200 with an empty toplist. See docs/dashboards.md.
 
@@ -15,6 +16,7 @@ export const SUPPORTED_FORMATS = [
   { id: 'gen9ubers', label: 'Gen 9 Ubers', teamPreview: true },
   { id: 'gen9uu', label: 'Gen 9 UU', teamPreview: true },
   { id: 'gen9monotype', label: 'Monotype', teamPreview: true },
+  { id: 'gen9championsvgc2026regmc', label: 'VGC 2026 Reg M-C', teamPreview: true },
   { id: 'gen9championsvgc2026regmb', label: 'VGC 2026 Reg M-B', teamPreview: true },
   // Random Battle has no team preview, so replays only reveal the Pokémon that
   // were actually sent out. Team-composition stats are incomplete here.

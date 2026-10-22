@@ -10,6 +10,17 @@ export const TOP_N = 100
 const ladderCache = createCache()
 
 /**
+ * The whole (up to 500) toplist for a format, through the shared cache.
+ *
+ * Exported for useTrendingFormats, which has to load a candidate's ladder to
+ * prove the id is real (a bad id returns an empty toplist, not a 404). Going
+ * through the same cache means clicking that format afterwards costs nothing.
+ */
+export function getLadder(formatId) {
+  return ladderCache.get(formatId, () => fetchLadder(formatId))
+}
+
+/**
  * Load a format's ladder. Pass null to clear.
  *
  * One request covers the whole dashboard — the response already carries
@@ -35,8 +46,7 @@ export function useLadder(formatId, { top = TOP_N } = {}) {
     setLoading(true)
     setError(null)
 
-    ladderCache
-      .get(formatId, () => fetchLadder(formatId))
+    getLadder(formatId)
       .then((toplist) => {
         if (!active) return
         setPlayers(toplist.slice(0, top))

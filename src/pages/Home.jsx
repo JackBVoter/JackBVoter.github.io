@@ -9,6 +9,7 @@ import { DEFAULT_FORMAT_ID, SUPPORTED_FORMATS, findFormat } from '../data/format
 import { useLadder } from '../hooks/useLadder.js'
 import { useTopPlayerReplays } from '../hooks/useTopPlayerReplays.js'
 import { useStoredState } from '../hooks/useStoredState.js'
+import { useTrendingFormats } from '../hooks/useTrendingFormats.js'
 
 /**
  * Start page: pick a format to see its ladder, or search for a player directly.
@@ -33,12 +34,27 @@ function Home() {
     (value) => Boolean(findFormat(value)),
   )
 
-  // URL wins when it names a format we actually support. An unrecognised
-  // ?format= falls back rather than rendering a page with no dashboards —
-  // remember that a bad formatid doesn't 404, it returns an empty toplist.
+  const trending = useTrendingFormats()
+  const findShown = (id) =>
+    findFormat(id) ?? trending.formats.find((entry) => entry.id === id) ?? null
+
+  // URL wins when it names a format this page offers — fixed or trending. An
+  // unrecognised ?format= falls back rather than rendering a page with no
+  // dashboards — remember that a bad formatid doesn't 404, it returns an empty
+  // toplist.
+  //
+  // While the trending sample is still loading we can't yet tell "trending"
+  // from "unknown", so wait instead of falling back: otherwise a back-link to a
+  // trending format would load the remembered format's ladder for nothing and
+  // then jump.
+  //
+  // Only fixed formats are remembered in storage (the validator is findFormat).
+  // Trends change; a new session shouldn't open on last week's.
   const urlFormatId = searchParams.get('format')
-  const formatId = findFormat(urlFormatId) ? urlFormatId : lastFormatId
-  const format = findFormat(formatId)
+  const urlFormat = findShown(urlFormatId)
+  const waitingForTrending = Boolean(urlFormatId) && !urlFormat && trending.loading
+  const format = urlFormat ?? (waitingForTrending ? null : findFormat(lastFormatId))
+  const formatId = format?.id ?? null
 
   const changeFormat = useCallback(
     (next) => {
@@ -98,6 +114,35 @@ function Home() {
           ))}
         </div>
       </div>
+
+      {/* Hidden while empty rather than showing an empty heading: a failed or
+          quiet sample just means the fixed list above is all there is. */}
+      {trending.formats.length > 0 ? (
+        <div className="mb-4">
+          <div className="text-uppercase text-muted small fw-semibold mb-2">
+            Trending now
+          </div>
+          <div className="d-flex flex-wrap gap-2">
+            {trending.formats.map((entry) => (
+              <Button
+                key={entry.id}
+                variant={entry.id === formatId ? 'secondary' : 'outline-secondary'}
+                onClick={() => changeFormat(entry.id)}
+                title={`${entry.count} of the most recent public replays`}
+              >
+                {entry.label}
+              </Button>
+            ))}
+          </div>
+          <div className="text-muted small mt-1">
+            Most played on Showdown
+            {trending.windowMinutes > 0
+              ? ` in the last ${trending.windowMinutes} minutes`
+              : ' right now'}
+            , beyond the formats above.
+          </div>
+        </div>
+      ) : null}
 
       <Row className="mb-4">
         <Col lg={7} xl={6}>

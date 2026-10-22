@@ -59,6 +59,21 @@ export function searchReplayPage(userId, page = 1, opts = {}) {
 }
 
 /**
+ * The site-wide feed of the newest public replays, across every format.
+ *
+ * Without a user this endpoint ignores `page` — page 2 is page 1 again (verified
+ * live 2026-10-21). The way back in time is `before=<uploadtime>`, which returns
+ * the 51 replays uploaded at or before that moment; pass the last entry's
+ * uploadtime to get the next page. Pages overlap at the seam, so dedupe by id.
+ */
+export function fetchRecentReplays({ before, signal } = {}) {
+  const params = new URLSearchParams()
+  if (before) params.set('before', String(before))
+  const query = params.toString()
+  return getJson(`${REPLAY_BASE}/search.json${query ? `?${query}` : ''}`, { signal })
+}
+
+/**
  * Page 1 of a user's replays in exactly one format, plus whether that page was
  * the whole story.
  *

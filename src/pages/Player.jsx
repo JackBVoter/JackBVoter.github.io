@@ -16,6 +16,7 @@ import { usePlayerAnalysis } from '../hooks/usePlayerAnalysis.js'
 import { useStoredState } from '../hooks/useStoredState.js'
 import { toUserId } from '../api/showdown.js'
 import { findFormat } from '../data/formats.js'
+import { isTrendingFormat } from '../hooks/useTrendingFormats.js'
 import { aggregate, teamKeyOf } from '../lib/aggregate.js'
 import { displaySpecies } from '../lib/species.js'
 import { timeAgo } from '../lib/time.js'
@@ -218,13 +219,14 @@ function Player() {
           </>
         ) : null}
         {/* Carry the format back, so returning lands on the ladder you came
-            from rather than resetting to the default. Only when it's one of the
-            six the start page offers — the format here can be one the hook
-            resolved from the player's own history, and pointing the start page
-            at something it can't show would be worse than not asking. */}
+            from rather than resetting to the default. Only when it's one the
+            start page offers, fixed or currently trending — the format here can
+            be one the hook resolved from the player's own history, and pointing
+            the start page at something it can't show would be worse than not
+            asking. */}
         <Link
           to={
-            findFormat(activeFormat)
+            findFormat(activeFormat) || isTrendingFormat(activeFormat)
               ? `/?format=${encodeURIComponent(activeFormat)}`
               : '/'
           }

@@ -200,7 +200,7 @@ involved. Keep the feature.
 
 ## Supported formats
 
-All six ladder endpoints verified live on 2026-07-26.
+All ladder endpoints verified live on 2026-07-26; Reg M-C added 2026-10-21.
 
 | Display label | formatid | Ladder |
 |---|---|---|
@@ -208,6 +208,7 @@ All six ladder endpoints verified live on 2026-07-26.
 | Gen 9 Ubers | `gen9ubers` | 500 players |
 | Gen 9 UU | `gen9uu` | 500 players |
 | Monotype | `gen9monotype` | 500 players |
+| VGC 2026 Reg M-C | `gen9championsvgc2026regmc` | 500 players |
 | VGC 2026 Reg M-B | `gen9championsvgc2026regmb` | 500 players |
 | Random Battle | `gen9randombattle` | 500 players |
 
@@ -219,6 +220,35 @@ the same way, and treat "toplist is empty" as "this id is wrong".
 
 Display labels must come from us: `gen9ou` reports `format: "OverUsed"`, but the
 VGC ladder reports `format: "gen9championsvgc2026regmb"`.
+
+### Trending formats (added 2026-10-21)
+
+Below the fixed buttons, the start page shows a **"Trending now"** row: up to
+five formats outside the fixed list that are being played a lot right now. The
+fixed list stays the default and is unaffected if this row fails or is empty
+(it is then hidden).
+
+There is no "popular formats" endpoint. The signal is the site-wide replay feed:
+`search.json` with **no** user.
+- **It ignores `page=`** — page 2 is page 1 again. Step back with
+  `before=<uploadtime of the last entry>`. Pages overlap at the seam; dedupe.
+- One page is 51 replays, about 4–5 minutes of uploads. The app samples 4 pages
+  (~20 minutes), so the row reflects the time of day.
+- Each entry's `format` is Showdown's display name ("[Gen 9 Champions] VGC 2026
+  Reg M-C"), so trending labels come from there, brackets dropped.
+
+Rules (`src/lib/trending.js`, checked by `scripts/check-trending.mjs`):
+- Main-server formats only: `smogtours-`, `rom-` etc. are excluded.
+- Two-player battles only — FFA/Multi would give the player page nothing.
+- At least 3 replays in the sample, and **at least one rated**. "Unrated Random
+  Battle" has a 43-entry stale "ladder", so the ladder check alone passes it.
+- Then the ladder must be non-empty, same rule as the fixed list. That request
+  goes through the shared ladder cache, so clicking the format is free.
+
+`?format=` may name a trending format. While the sample is loading the page
+waits rather than falling back. Only fixed formats are remembered in
+localStorage — a new session shouldn't open on an old trend. The result is held
+10 minutes.
 
 ---
 
